@@ -1,0 +1,29 @@
+---
+title: "01_Missingness"
+author: "John Dou"
+date: "December 7, 2020"
+output: html_document
+---
+
+
+```{r}
+srun --nodes=1 --ntasks-per-node=1 --mem-per-cpu=16g --account=bakulski1 --time=02:00:00 --pty /bin/bash
+
+module load Bioinformatics
+module load plink/1.9
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/01_Missing/
+
+plink --bfile "/nfs/turbo/bakulski1/Datasets/ALS/Traynor Data/feldmanSamples22Aug2018" --missing
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
