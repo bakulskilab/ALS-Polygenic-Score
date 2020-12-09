@@ -1,0 +1,85 @@
+---
+title: "02_Sex"
+author: "John Dou"
+date: "December 9, 2020"
+output: html_document
+---
+
+```{batch}
+module load Bioinformatics
+module load plink/1.9
+module load R
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/02_Sex/
+```
+
+
+## Sex check
+
+```{batch}
+### sex check in plink
+plink --bfile ../01_Missing/als03_ind_miss --check-sex
+
+R
+```
+
+```{r}
+library(ggplot2)
+
+sex <- read.table("plink.sexcheck", header=T,as.is=T)
+
+table(sex$F < 0.2)
+#FALSE  TRUE
+#  274   234
+
+table(sex$F > 0.8)
+#FALSE  TRUE
+#  234   274
+
+mycol <- c(rgb(20, 20, 235, max = 255, alpha = 125),
+           rgb(235, 20, 20, max = 255, alpha = 125), 
+           rgb(200, 200, 200, max = 255, alpha = 125))
+
+sex$SNPSEX <- ifelse(sex$SNPSEX==0, 'U', ifelse(sex$SNPSEX==1, 'M', 'F'))
+sex$PEDSEX <- ifelse(sex$PEDSEX==0, 'U', ifelse(sex$PEDSEX==1, 'M', 'F'))
+
+
+pdf("sex_check.pdf")
+	ggplot(sex, aes(x=F, fill=PEDSEX)) +
+	geom_histogram(color='black', bins=15) +
+	theme_classic()  + 
+	theme(text=element_text(size=20)) +
+	scale_fill_manual(values=mycol) +
+	labs(fill='Sex') +
+	ylab('Frequency') +
+	geom_vline(xintercept = 0.2, color='red') +
+	geom_vline(xintercept = 0.8, color='red')
+dev.off()
+
+sex[sex$STATUS=='PROBLEM',]
+```
+    FID   IID PEDSEX SNPSEX  STATUS         F
+130 132   609      2      1 PROBLEM  0.999800
+207 209  7746      1      2 PROBLEM  0.067830
+238 240  9977      2      1 PROBLEM  0.999400
+288 292   730      1      2 PROBLEM  0.031500
+368 372   881      2      1 PROBLEM  0.999200
+437 441  1106      1      2 PROBLEM  0.083210
+503 507 _0086      0      1 PROBLEM  0.999800
+504 508 _0081      0      1 PROBLEM  1.000000
+505 509  3968      0      2 PROBLEM  0.028010
+506 234  8288      0      2 PROBLEM  0.003528
+507 215  9970      0      1 PROBLEM  0.999800
+508 512  8990      0      2 PROBLEM -0.010780
+
+
+```{batch}
+### remove those with mismatch predicted sex
+
+# This command generates a list of individuals with the status “PROBLEM”.
+grep "PROBLEM" plink.sexcheck| awk '{print$1,$2}'> sex_discrepancy.txt
+
+# This command removes the list of individuals with the status “PROBLEM”.
+plink --bfile ../01_Missing/als03_ind_miss --remove sex_discrepancy.txt --make-bed --out al04s_sex_remove 
+```
+

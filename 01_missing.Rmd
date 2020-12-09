@@ -5,8 +5,6 @@ date: "December 7, 2020"
 output: html_document
 ---
 
-## Check missingness levels
-
 ```{batch}
 srun --nodes=1 --ntasks-per-node=1 --mem-per-cpu=16g --account=bakulski1 --time=02:00:00 --pty /bin/bash
 
@@ -15,7 +13,11 @@ module load plink/1.9
 module load R
 
 cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/01_Missing/
+```
 
+## Check missingness levels
+
+```{batch}
 plink --file "/nfs/turbo/bakulski1/Datasets/ALS/348_Goutman/Reports/PLINK_261120_0826/Reports" --not-chr 0 --make-bed --out als01_chr
 plink --bfile "als01_chr" --missing
 
