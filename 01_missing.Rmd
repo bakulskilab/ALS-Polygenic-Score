@@ -18,12 +18,16 @@ cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/01_Missing/
 ## Check missingness levels
 
 ```{batch}
+plink --file "/nfs/turbo/bakulski1/Datasets/ALS/348_Goutman/Reports/PLINK_261120_0826/Reports" --chr 0 --make-bed --out chr_0
+#14874 variants
+
 plink --file "/nfs/turbo/bakulski1/Datasets/ALS/348_Goutman/Reports/PLINK_261120_0826/Reports" --not-chr 0 --make-bed --out als01_chr
 plink --bfile "als01_chr" --missing
 
 R
 ```
 
+1733376 variants loaded from .bim file.
 512 people (274 males, 232 females, 6 ambiguous) loaded from .fam.
 Ambiguous sex IDs written to als01_chr.nosex .
 

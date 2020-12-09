@@ -43,6 +43,12 @@ mycol <- c(rgb(20, 20, 235, max = 255, alpha = 125),
 sex$SNPSEX <- ifelse(sex$SNPSEX==0, 'U', ifelse(sex$SNPSEX==1, 'M', 'F'))
 sex$PEDSEX <- ifelse(sex$PEDSEX==0, 'U', ifelse(sex$PEDSEX==1, 'M', 'F'))
 
+table(sex$PEDSEX, sex$SNPSEX)
+#      F   M
+#  F 228   3
+#  M   3 268
+#  U   3   3
+
 
 pdf("sex_check.pdf")
 	ggplot(sex, aes(x=F, fill=PEDSEX)) +
@@ -57,6 +63,7 @@ pdf("sex_check.pdf")
 dev.off()
 
 sex[sex$STATUS=='PROBLEM',]
+write.csv(sex[sex$STATUS=='PROBLEM',], file='sex_check_issues.csv', row.names=F)
 ```
     FID   IID PEDSEX SNPSEX  STATUS         F
 130 132   609      2      1 PROBLEM  0.999800
