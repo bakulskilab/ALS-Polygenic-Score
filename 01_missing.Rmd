@@ -5,25 +5,162 @@ date: "December 7, 2020"
 output: html_document
 ---
 
+## Check missingness levels
 
-```{r}
+```{batch}
 srun --nodes=1 --ntasks-per-node=1 --mem-per-cpu=16g --account=bakulski1 --time=02:00:00 --pty /bin/bash
 
 module load Bioinformatics
 module load plink/1.9
+module load R
 
 cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/01_Missing/
 
-plink --bfile "/nfs/turbo/bakulski1/Datasets/ALS/Traynor Data/feldmanSamples22Aug2018" --missing
+plink --file "/nfs/turbo/bakulski1/Datasets/ALS/348_Goutman/Reports/PLINK_261120_0826/Reports" --not-chr 0 --make-bed --out als01_chr
+plink --bfile "als01_chr" --missing
+
+R
+```
+
+512 people (274 males, 232 females, 6 ambiguous) loaded from .fam.
+Ambiguous sex IDs written to als01_chr.nosex .
+
+Before main variant filters, 512 founders and 0 nonfounders present.
+
+Warning: 115120 het. haploid genotypes present (see als01_chr.hh ); many
+commands treat these as missing.
+Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands
+treat these as missing.
+
+Total genotyping rate is 0.997806.
+
+1733376 variants and 512 people pass filters and QC.
+
+
+```{r}
+#read into R
+setwd("/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/01_Missing/")
+samp_miss <- read.table(file="plink.imiss", header=TRUE)
+snp_miss <- read.table(file="plink.lmiss", header=TRUE)
+
+head(samp_miss)
+head(snp_miss)
+
+mycol <- c(rgb(20, 20, 235, max = 255, alpha = 125), rgb(235, 20, 20, max = 255, alpha = 125))
+
+pdf("hist_ind_miss.pdf") 
+  h <- hist(samp_miss$F_MISS, plot=FALSE)
+  cuts <- cut(h$breaks, c(-Inf, 0.01, Inf))[-1]
+  plot(h, main="Histogram Individual Missingness", xlab="Pct SNPs Missing Per Individual", axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+  axis(1, cex.axis=1.5)
+  axis(2, las=2, cex.axis=1.5) 
+  abline(v=0.01, col="red")
+dev.off()
+
+pdf("hist_snp_miss.pdf") 
+  h <- hist(snp_miss$F_MISS, plot=FALSE, breaks=100) 
+  cuts <- cut(h$breaks, c(-Inf, 0.01, Inf))[-1]
+  par(mar=c(5.1,6.3,4.1,2.1))
+  plot(h, main="Histogram SNP Missingness", xlab="Pct Individuals Missing Per SNP", ylab="", axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+  axis(1, cex.axis=1.5)
+  axis(2, las=2, cex.axis=1.5) 
+  mtext("Frequency", side=2, line=5, cex=1.5)
+  abline(v=0.01, col="red") 
+dev.off()
+
+pdf("hist_snp_miss_zoom.pdf") 
+  h <- hist(snp_miss$F_MISS, plot=FALSE, breaks=100)
+  cuts <- cut(h$breaks, c(-Inf, 0.01, Inf))[-1]
+   par(mar=c(5.1,6.3,4.1,2.1))
+  plot(h, main="Histogram SNP Missingness", xlab="Pct Individuals Missing Per SNP", ylab="", ylim=c(0,2000), axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+  axis(1, cex.axis=1.5)
+  axis(2, las=2, cex.axis=1.5) 
+  mtext("Frequency", side=2, line=5, cex=1.5)
+  abline(v=0.01, col="red")   
+dev.off()
+
+
+table(samp_miss$F_MISS>0.01)
+#FALSE  TRUE
+#  508     4
+
+table(snp_miss$F_MISS>0.01)
+#  FALSE    TRUE
+#1712419   20957
+
+
+table(snp_miss$F_MISS>0.02)
+#  FALSE    TRUE
+#1722579   10797
+
+table(snp_miss$F_MISS==1)
+#  FALSE    TRUE
+#1733063     313
 
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+## Filter based on SNP missing first
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{batch}
+# Delete SNPs with missingness >0.01.
+plink --bfile als01_chr --geno 0.01 --make-bed --out als02_snp_miss
+
+plink --bfile als02_snp_miss --missing --out post_snp_filter
+
+R
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+#### post SNP filter numbers
+samp_miss <- read.table(file="post_snp_filter.imiss", header=TRUE)
+snp_miss <- read.table(file="post_snp_filter.lmiss", header=TRUE)
+
+mycol <- c(rgb(20, 20, 235, max = 255, alpha = 125), rgb(235, 20, 20, max = 255, alpha = 125))
+
+pdf("hist_ind_miss_postSNP.pdf") 
+  h <- hist(samp_miss$F_MISS, plot=FALSE)
+  cuts <- cut(h$breaks, c(-Inf, 0.01, Inf))[-1]
+  plot(h, main="Histogram Individual Missingness", xlab="Pct SNPs Missing Per Individual", axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+  axis(1, cex.axis=1.5)
+  axis(2, las=2, cex.axis=1.5) 
+  abline(v=0.01, col="red")
+dev.off()
+
+pdf("hist_snp_miss_postSNP.pdf") 
+  h <- hist(snp_miss$F_MISS, plot=FALSE, breaks=100) 
+  cuts <- cut(h$breaks, c(-Inf, 0.01, Inf))[-1]
+  par(mar=c(5.1,6.3,4.1,2.1))
+  plot(h, main="Histogram SNP Missingness", xlab="Pct Individuals Missing Per SNP", ylab="", axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+  axis(1, cex.axis=1.5)
+  axis(2, las=2, cex.axis=1.5) 
+  mtext("Frequency", side=2, line=5, cex=1.5)
+  abline(v=0.01, col="red") 
+dev.off()
+
+pdf("hist_snp_miss_zoom_postSNP.pdf") 
+  h <- hist(snp_miss$F_MISS, plot=FALSE, breaks=100)
+  cuts <- cut(h$breaks, c(-Inf, 0.01, Inf))[-1]
+   par(mar=c(5.1,6.3,4.1,2.1))
+  plot(h, main="Histogram SNP Missingness", xlab="Pct Individuals Missing Per SNP", ylab="", ylim=c(0,2000), axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+  axis(1, cex.axis=1.5)
+  axis(2, las=2, cex.axis=1.5) 
+  mtext("Frequency", side=2, line=5, cex=1.5)
+  abline(v=0.01, col="red")   
+dev.off()
+
+
+
+table(samp_miss$F_MISS>0.01)
+#FALSE  TRUE
+#  508     4
+```
+
+
+## Filter based on individual missing
+
+```{batch}
+# Delete individuals with missingness >0.01.
+plink --bfile als02_snp_miss --mind 0.01 --make-bed --out als03_ind_miss
+```
