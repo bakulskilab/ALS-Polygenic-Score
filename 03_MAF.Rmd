@@ -1,0 +1,126 @@
+---
+title: "03_MAF"
+author: "John Dou"
+date: "December 13, 2020"
+output: html_document
+---
+
+```{batch}
+module load Bioinformatics
+module load plink/1.9
+module load R
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/03_MAF/
+```
+
+
+## Separate PAR/nonPAR regions
+
+```{batch}
+
+# Select autosomal SNPs and pseudo autosomal
+plink --bfile ../02_Sex/als05_sex_impute --chr 1-22 xy --make-bed --out als06_aut_PAR
+
+# select non-PAR in males
+plink --bfile ../02_Sex/als05_sex_impute --chr X --filter-males --make-bed --out als06_nonPAR_male
+
+# select non-PAR in females
+plink --bfile ../02_Sex/als05_sex_impute --chr X --filter-females --make-bed --out als06_nonPAR_female
+```
+
+
+# plot MAF distribution.
+
+```{batch}
+
+plink --bfile als06_aut_PAR --freq --out MAF_check_PAR
+plink --bfile als06_nonPAR_male --freq --out MAF_check_nPAR_male
+plink --bfile als06_nonPAR_female --freq --out MAF_check_nPAR_female
+
+R
+```
+
+```{r}
+
+### autosomal and pseudo aut
+maf_freq <- read.table("MAF_check_PAR.frq", header =TRUE, as.is=T)
+
+head(maf_freq)
+
+table(maf_freq$MAF<0.05)
+#  FALSE    TRUE
+# 601588 1060091
+
+table(maf_freq$MAF<0.01)
+#  FALSE   TRUE
+# 794788 866891
+
+mycol <- c(rgb(235, 20, 20, max = 255, alpha = 125),rgb(20, 20, 235, max = 255, alpha = 125))
+
+pdf("MAF_distribution_PAR.pdf")
+	h <- hist(maf_freq[,5], breaks=50, plot=FALSE) 
+	cuts <- cut(h$breaks, c(-Inf, 0.05, Inf))[-1]
+	par(mar=c(5.1,6.3,4.1,2.1))
+	plot(h, main = "MAF distribution", xlab = "MAF", ylab="", axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+	axis(1, cex.axis=1.5)
+	axis(2, las=2, cex.axis=1.5) 
+	mtext("Frequency", side=2, line=5, cex=1.5)
+	abline(v=0.05, col="red")
+dev.off()
+
+
+### non pseudo aut male
+maf_freq_nPAR_m <- read.table("MAF_check_nPAR_male.frq", header =TRUE, as.is=T)
+
+table(maf_freq_nPAR_m$MAF<0.05)
+#FALSE  TRUE
+#15126 34323
+
+mycol <- c(rgb(235, 20, 20, max = 255, alpha = 125),rgb(20, 20, 235, max = 255, alpha = 125))
+
+pdf("MAF_distribution_nPAR_m.pdf")
+	h <- hist(maf_freq_nPAR_m[,5], breaks=50, plot=FALSE) 
+	cuts <- cut(h$breaks, c(-Inf, 0.05, Inf))[-1]
+	par(mar=c(5.1,6.3,4.1,2.1))
+	plot(h, main = "MAF distribution", xlab = "MAF", ylab="", axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+	axis(1, cex.axis=1.5)
+	axis(2, las=2, cex.axis=1.5) 
+	mtext("Frequency", side=2, line=5, cex=1.5)
+	abline(v=0.05, col="red")
+dev.off()
+
+
+### non pseudo aut female
+maf_freq_nPAR_f <- read.table("MAF_check_nPAR_female.frq", header =TRUE, as.is=T)
+
+table(maf_freq_nPAR_f$MAF<0.05)
+#FALSE  TRUE
+#15152 
+
+mycol <- c(rgb(235, 20, 20, max = 255, alpha = 125),rgb(20, 20, 235, max = 255, alpha = 125))
+
+pdf("MAF_distribution_nPAR_f.pdf")
+	h <- hist(maf_freq_nPAR_f[,5], breaks=50, plot=FALSE) 
+	cuts <- cut(h$breaks, c(-Inf, 0.05, Inf))[-1]
+	par(mar=c(5.1,6.3,4.1,2.1))
+	plot(h, main = "MAF distribution", xlab = "MAF", ylab="", axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+	axis(1, cex.axis=1.5)
+	axis(2, las=2, cex.axis=1.5) 
+	mtext("Frequency", side=2, line=5, cex=1.5)
+	abline(v=0.05, col="red")
+dev.off()
+
+```
+
+
+## Remove SNPs with a low MAF frequency.
+
+```{batch}
+
+plink --bfile als06_aut_PAR --maf 0.05 --make-bed --out als07_PAR_maf05
+plink --bfile als06_nonPAR_male --maf 0.05 --make-bed --out als07_nPAR_male_maf05
+plink --bfile als06_nonPAR_female --maf 0.05 --make-bed --out als07_nPAR_female_maf05
+
+# set the heterozygous haploid in male to missing
+plink --bfile als07_nPAR_male_maf05 --set-hh-missing --make-bed --out als07_nPAR_male_maf05
+```
