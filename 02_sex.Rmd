@@ -97,8 +97,10 @@ write.table(fam, file="../01_Missing/als03_ind_miss.fam", col.names=F, row.names
 
 
 ```{batch}
-# This command removes the list of individuals with the status “PROBLEM”.
-plink --bfile ../01_Missing/als03_ind_miss --remove sex_discrepancy.txt --make-bed --out al04s_sex_remove 
+# remove individuals with sex mismatch
+plink --bfile ../01_Missing/als03_ind_miss --remove sex_discrepancy.txt --make-bed --out als04_sex_remove
+
+# confirmed ones missing sex are correct, impute the unknown ones
+plink --bfile als04_sex_remove --impute-sex --make-bed --out als05_sex_impute
 
 ```
-
