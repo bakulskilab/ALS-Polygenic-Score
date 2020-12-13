@@ -62,8 +62,24 @@ pdf("sex_check.pdf")
 	geom_vline(xintercept = 0.8, color='red')
 dev.off()
 
-sex[sex$STATUS=='PROBLEM',]
-write.csv(sex[sex$STATUS=='PROBLEM',], file='sex_check_issues.csv', row.names=F)
+problem <- sex[sex$STATUS=='PROBLEM',]
+write.csv(problem, file='sex_check_issues.csv', row.names=F)
+
+
+problem <- problem[problem$PEDSEX!='U',]
+write.table(problem[,c(1,2)], file="sex_discrepancy.txt", row.names = F, col.names = F, quote=F)
+
+
+### change IID of two duplicated samples to have _ prefix
+fam <- read.table("../01_Missing/als03_ind_miss.fam")
+fam[duplicated(fam$V2),]
+#     V1   V2 V3 V4 V5 V6
+#506 234 8288  0  0  0 -9
+#507 215 9970  0  0  0 -9
+fam$V2 <- as.character(fam$V2)
+fam[duplicated(fam$V2),2] <- paste0('_',fam[duplicated(fam$V2),2])
+write.table(fam, file="../01_Missing/als03_ind_miss.fam", col.names=F, row.names=F, quote=F)
+
 ```
     FID   IID PEDSEX SNPSEX  STATUS         F
 130 132   609      2      1 PROBLEM  0.999800
@@ -81,12 +97,8 @@ write.csv(sex[sex$STATUS=='PROBLEM',], file='sex_check_issues.csv', row.names=F)
 
 
 ```{batch}
-### remove those with mismatch predicted sex
-
-# This command generates a list of individuals with the status “PROBLEM”.
-grep "PROBLEM" plink.sexcheck| awk '{print$1,$2}'> sex_discrepancy.txt
-
 # This command removes the list of individuals with the status “PROBLEM”.
 plink --bfile ../01_Missing/als03_ind_miss --remove sex_discrepancy.txt --make-bed --out al04s_sex_remove 
+
 ```
 
