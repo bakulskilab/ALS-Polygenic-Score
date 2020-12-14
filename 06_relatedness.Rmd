@@ -1,0 +1,88 @@
+---
+title: "06_relatedness"
+author: "John Dou"
+date: "December 13, 2020"
+output: html_document
+---
+
+```{batch}
+module load Bioinformatics
+module load plink/1.9
+module load R
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/06_Relate/
+```
+
+
+## relatedness check
+
+```{batch}
+# Check for relationships between individuals with a pihat > 0.2.
+plink --bfile ../05_Heterozygosity/als09_PAR_het --extract ../05_Heterozygosity/indepSNP.prune.in --genome --min 0.2 --out pihat_min0.2
+# nobody with pihat > 0.2
+
+plink --bfile ../05_Heterozygosity/als09_PAR_het --extract ../05_Heterozygosity/indepSNP.prune.in --genome --out all_relation
+```
+FID1   IID1 FID2   IID2 RT    EZ      Z0      Z1      Z2  PI_HAT PHE       DST     PPC   RATIO
+  62    618  75   1003 UN    NA  0.0000  0.0000  1.0000  1.0000  -1  0.999992  1.0000      NA
+  93     81 508  _0081 UN    NA  0.0000  0.0000  1.0000  1.0000  -1  1.000000  1.0000      NA
+ 215   9970 215  _9970 OT     0  0.0000  0.0000  1.0000  1.0000  -1  0.999996  1.0000      NA
+ 216     86 507  _0086 UN    NA  0.0000  0.0000  1.0000  1.0000  -1  0.999996  1.0000      NA
+ 234   8288 234  _8288 OT     0  0.0000  0.0000  1.0000  1.0000  -1  1.000000  1.0000      NA
+ 339    233 432    670 UN    NA  0.2227  0.5121  0.2652  0.5213  -1  0.865215  1.0000 11.8355
+ 495    779 496    701 UN    NA  0.0001  0.0000  0.9999  0.9999  -1  0.999985  1.0000      NA
+
+```{r}
+relatedness = read.table("all_relation.genome", header=T)
+
+
+pdf("relatedness.pdf")
+	par(pch=16, cex=1)
+	with(relatedness,plot(Z0,Z1, xlim=c(0,1), ylim=c(0,1), type="n", xlab="Z0 (proportion of loci where pair shares zero alleles IBD)", ylab="Z1 (proportion of loci where pair shares one allele IBD)"))
+	with(subset(relatedness,RT=="PO") , points(Z0,Z1,col=4))
+	with(subset(relatedness,RT=="UN") , points(Z0,Z1,col='black'))
+	legend(1,1, xjust=1, yjust=1, legend=levels(relatedness$RT), pch=16, col='black')
+dev.off()
+
+
+mycol <- c(rgb(20, 20, 235, max = 255, alpha = 125))
+
+pdf("hist_relatedness.pdf")
+	h <- hist(relatedness[,10], breaks=500, plot=FALSE)
+	par(mar=c(5.1,6.3,4.1,2.1))
+	plot(h, main="Relatedness", xlab= "Pihat", ylab="", axes=FALSE, xlim=c(0,0.25), col=mycol, cex.lab=1.5)
+	axis(1, cex.axis=1.5)
+	axis(2, las=2, cex.axis=1.5) 
+	mtext("Frequency", side=2, line=5, cex=1.5)
+	abline(v=0.2, col="red")
+dev.off() 
+
+
+rep <- relatedness[relatedness$Z0<0.1 & relatedness$Z1<0.1,]
+unexp_rel <- relatedness[relatedness$Z1>0.4,]
+
+write.csv(rep, file='suspected_replicates.csv', row.names=F, quote=F)
+write.csv(unexp_rel, file='unexpected_relation.csv', row.names=F,)
+```
+
+Z0 and Z1 near 0:
+       FID1 IID1 FID2  IID2 RT EZ    Z0 Z1     Z2 PI_HAT PHE      DST PPC RATIO
+26664    62  618   75  1003 UN NA 0e+00  0 1.0000 1.0000  -1 0.999992   1    NA
+39512    93   81  508 _0081 UN NA 0e+00  0 1.0000 1.0000  -1 1.000000   1    NA
+79412   215 9970  215 _9970 OT  0 0e+00  0 1.0000 1.0000  -1 0.999996   1    NA
+79690   216   86  507 _0086 UN NA 0e+00  0 1.0000 1.0000  -1 0.999996   1    NA
+84598   234 8288  234 _8288 OT  0 0e+00  0 1.0000 1.0000  -1 1.000000   1    NA
+119164  495  779  496   701 UN NA 1e-04  0 0.9999 0.9999  -1 0.999985   1    NA
+
+
+High Z1:
+FID1 IID1 FID2 IID2 RT EZ     Z0     Z1     Z2 PI_HAT PHE      DST PPC  RATIO
+ 339  233  432  670 UN NA 0.2227 0.5121 0.2652 0.5213  -1 0.865215   1  11.8355
+
+
+to do: confirm replicates and check relation
+```{r}
+plink --bfile ../05_Heterozygosity/als09_PAR_het --make-bed --out als_PAR_relate
+
+```
+
