@@ -1,0 +1,73 @@
+---
+title: "05_heterozygosity"
+author: "John Dou"
+date: "December 13, 2020"
+output: html_document
+---
+
+```{batch}
+module load Bioinformatics
+module load plink/1.9
+module load R
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/05_Heterozygosity/
+```
+
+
+## check heterozygosity
+
+```{batch}
+# exclude high inversion regions (inversion.txt [High LD regions]) and prune SNPs
+
+plink --bfile ../04_HWE/als08_PAR_hwe --exclude inversion.txt --range --indep-pairwise 50 5 0.2 --out indepSNP
+
+plink --bfile ../04_HWE/als08_PAR_hwe --extract indepSNP.prune.in --het --out het_check
+
+R
+```
+
+```{r}
+het <- read.table("het_check.het", head=TRUE)
+
+het$HET_RATE = (het$"N.NM." - het$"O.HOM.")/het$"N.NM."
+
+low.lim <- mean(het$HET_RATE)-3*sd(het$HET_RATE)
+high.lim <- mean(het$HET_RATE)+3*sd(het$HET_RATE)
+
+mycol <- c(rgb(235, 20, 20, max = 255, alpha = 125),rgb(20, 20, 235, max = 255, alpha = 125),rgb(235, 20, 20, max = 255, alpha = 125))
+
+pdf("heterozygosity.pdf")
+	h <- hist(het$HET_RATE, breaks=50, plot=FALSE)
+	cuts <- cut(h$breaks, c(-Inf, low.lim, high.lim, Inf))
+	par(mar=c(5.1,6.3,4.1,2.1))
+	plot(h, main = "Hardy-Weinberg Equilibrium", xlab = "Heterozygosity Rate", ylab="", axes=FALSE, col=mycol[cuts], cex.lab=1.5)
+	axis(1, cex.axis=1.5)
+	axis(2, las=2, cex.axis=1.5) 
+	mtext("Frequency", side=2, line=5, cex=1.5)
+	abline(v=low.lim, col="red")
+	abline(v=high.lim, col="red")
+dev.off()
+
+het_fail = subset(het, (het$HET_RATE < mean(het$HET_RATE)-3*sd(het$HET_RATE)) | (het$HET_RATE > mean(het$HET_RATE)+5*sd(het$HET_RATE)));
+het_fail$HET_DST = (het_fail$HET_RATE-mean(het$HET_RATE))/sd(het$HET_RATE);
+
+het_fail <- het_fail[-1,]
+
+nrow(het_fail)
+# 13
+
+write.table(het_fail, "fail-het-qc.txt", row.names=FALSE)
+```
+
+
+## remove samples with large deviations
+
+```{r}
+# format fail-het-qc for PLINK
+sed 's/"// g' fail-het-qc.txt | awk '{print$1, $2}'> het_fail_ind.txt
+
+# Remove heterozygosity rate outliers.
+plink --bfile ../04_HWE/als08_PAR_hwe --remove het_fail_ind.txt --make-bed --out als09_PAR_het
+plink --bfile ../04_HWE/als08_nPAR_female_hwe --remove het_fail_ind.txt --make-bed --out als09_nPAR_female_het
+plink --bfile ../03_MAF/als07_nPAR_male_maf05 --remove het_fail_ind.txt --make-bed --out als07_nPAR_male_het
+```
