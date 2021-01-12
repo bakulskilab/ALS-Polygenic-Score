@@ -80,9 +80,73 @@ FID1 IID1 FID2 IID2 RT EZ     Z0     Z1     Z2 PI_HAT PHE      DST PPC  RATIO
  339  233  432  670 UN NA 0.2227 0.5121 0.2652 0.5213  -1 0.865215   1  11.8355
 
 
-to do: confirm replicates and check relation
-```{r}
-plink --bfile ../05_Heterozygosity/als09_PAR_het --make-bed --out als_PAR_relate
+## for actual replicates and for cryptic relatadness, drop one with lower call rate, drop both non-replicate sample matches
+```{batch}
+plink --bfile ../05_Heterozygosity/als09_PAR_het --missing
+```
 
+```{r}
+relatedness = read.table("all_relation.genome", header=T)
+rep <- relatedness[relatedness$Z0<0.1 & relatedness$Z1<0.1,]
+unexp_rel <- relatedness[relatedness$Z1>0.4,]
+
+rep$IID1 <- as.character(rep$IID1)
+rep$IID2 <- as.character(rep$IID2)
+unexp_rel$IID1 <- as.character(unexp_rel$IID1)
+unexp_rel$IID2 <- as.character(unexp_rel$IID2)
+
+samp_miss <- read.table(file="plink.imiss", header=TRUE)
+samp_miss <- samp_miss[samp_miss$IID %in% c(rep$IID1, rep$IID2, unexp_rel$IID1, unexp_rel$IID2), ]
+
+actual_reps <- c(2:5)
+rep_actual <- rep[actual_reps,]
+rep_mistake <- rep[-actual_reps,]
+
+#for inappropriate matches, get rid of both
+remove_these <- data.frame(FID=c(rep_mistake$FID1, rep_mistake$FID2),
+                           IID=c(rep_mistake$IID1, rep_mistake$IID2))
+remove_these$FID <- as.character(remove_these$FID)
+remove_these$IID <- as.character(remove_these$IID)
+
+#for actual replicates, drop one with more missing
+for(i in 1:nrow(rep_actual)){
+  s1 = c(FID=rep_actual[i,'FID1'], IID=rep_actual[i,'IID1'])
+  s2 = c(FID=rep_actual[i,'FID2'], IID=rep_actual[i,'IID2'])
+  
+  s1.miss = samp_miss[samp_miss$IID==s1['IID'], 'F_MISS']
+  s2.miss = samp_miss[samp_miss$IID==s2['IID'], 'F_MISS']
+  
+  if(s1.miss > s2.miss){
+    remove_these <- rbind(remove_these, s1)
+  }else{
+    remove_these <- rbind(remove_these, s2)
+  }
+}
+
+#loop unecessary for this since only one pair, but concept the same
+for(i in 1:nrow(unexp_rel)){
+  s1 = c(FID=unexp_rel[i,'FID1'], IID=unexp_rel[i,'IID1'])
+  s2 = c(FID=unexp_rel[i,'FID2'], IID=unexp_rel[i,'IID2'])
+  
+  s1.miss = samp_miss[samp_miss$IID==s1['IID'], 'F_MISS']
+  s2.miss = samp_miss[samp_miss$IID==s2['IID'], 'F_MISS']
+  
+  if(s1.miss > s2.miss){
+    remove_these <- rbind(remove_these, s1)
+  }else{
+    remove_these <- rbind(remove_these, s2)
+  }
+}
+
+
+write.table(remove_these, file='relatedness_filter.txt', quote=F, row.names=F)
+```
+
+```{batch}
+plink --bfile ../05_Heterozygosity/als09_PAR_het --remove relatedness_filter.txt --make-bed --out als10_PAR_rel
+
+plink --bfile ../05_Heterozygosity/als09_nPAR_female_het --remove relatedness_filter.txt --make-bed --out als10_nPAR_female_rel
+
+plink --bfile ../05_Heterozygosity/als09_nPAR_male_het --remove relatedness_filter.txt --make-bed --out als10_nPAR_male_rel
 ```
 
