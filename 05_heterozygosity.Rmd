@@ -6,6 +6,8 @@ output: html_document
 ---
 
 ```{batch}
+srun --nodes=1 --ntasks-per-node=1 --mem-per-cpu=16g --account=bakulski1 --time=02:00:00 --pty /bin/bash
+
 module load Bioinformatics
 module load plink/1.9
 module load R
@@ -31,8 +33,8 @@ het <- read.table("het_check.het", head=TRUE)
 
 het$HET_RATE = (het$"N.NM." - het$"O.HOM.")/het$"N.NM."
 
-low.lim <- mean(het$HET_RATE)-3*sd(het$HET_RATE)
-high.lim <- mean(het$HET_RATE)+3*sd(het$HET_RATE)
+low.lim <- mean(het$HET_RATE)-5*sd(het$HET_RATE)
+high.lim <- mean(het$HET_RATE)+5*sd(het$HET_RATE)
 
 mycol <- c(rgb(235, 20, 20, max = 255, alpha = 125),rgb(20, 20, 235, max = 255, alpha = 125),rgb(235, 20, 20, max = 255, alpha = 125))
 
@@ -48,13 +50,11 @@ pdf("heterozygosity.pdf")
 	abline(v=high.lim, col="red")
 dev.off()
 
-het_fail = subset(het, (het$HET_RATE < mean(het$HET_RATE)-3*sd(het$HET_RATE)) | (het$HET_RATE > mean(het$HET_RATE)+5*sd(het$HET_RATE)));
+het_fail = subset(het, (het$HET_RATE < mean(het$HET_RATE)-5*sd(het$HET_RATE)) | (het$HET_RATE > mean(het$HET_RATE)+5*sd(het$HET_RATE)));
 het_fail$HET_DST = (het_fail$HET_RATE-mean(het$HET_RATE))/sd(het$HET_RATE);
 
-het_fail <- het_fail[-1,]
-
 nrow(het_fail)
-# 13
+# 4
 
 write.table(het_fail, "fail-het-qc.txt", row.names=FALSE)
 ```
@@ -69,5 +69,5 @@ sed 's/"// g' fail-het-qc.txt | awk '{print$1, $2}'> het_fail_ind.txt
 # Remove heterozygosity rate outliers.
 plink --bfile ../04_HWE/als08_PAR_hwe --remove het_fail_ind.txt --make-bed --out als09_PAR_het
 plink --bfile ../04_HWE/als08_nPAR_female_hwe --remove het_fail_ind.txt --make-bed --out als09_nPAR_female_het
-plink --bfile ../03_MAF/als07_nPAR_male_maf05 --remove het_fail_ind.txt --make-bed --out als07_nPAR_male_het
+plink --bfile ../03_MAF/als07_nPAR_male_maf05 --remove het_fail_ind.txt --make-bed --out als09_nPAR_male_het
 ```
