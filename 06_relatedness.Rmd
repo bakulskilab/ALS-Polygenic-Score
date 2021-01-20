@@ -102,11 +102,12 @@ actual_reps <- c(2:5)
 rep_actual <- rep[actual_reps,]
 rep_mistake <- rep[-actual_reps,]
 
-#for inappropriate matches, get rid of both
+#for inappropriate matches
 remove_these <- data.frame(FID=c(rep_mistake$FID1, rep_mistake$FID2),
                            IID=c(rep_mistake$IID1, rep_mistake$IID2))
 remove_these$FID <- as.character(remove_these$FID)
 remove_these$IID <- as.character(remove_these$IID)
+remove_these <- remove_these[remove_these$IID != 1003, ]
 
 #for actual replicates, drop one with more missing
 for(i in 1:nrow(rep_actual)){
