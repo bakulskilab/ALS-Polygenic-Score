@@ -43,17 +43,24 @@ awk '{print$2,$5}' 1000G_snp_match_build.bim > 1000G_ref_list.txt
 plink --bfile als_snp_match --reference-allele 1000G_ref_list.txt --make-bed --out als_ref_match
 
 
+### genome harmonizer
+java -Xms16g -jar /nfs/turbo/bakulski1/Software/GenotypeHarmonizer-1.4.23/GenotypeHarmonizer.jar \
+  --input als_snp_match\
+  --output als_genome_harmonize\
+  --ref 1000G_snp_match_build
+
+plink --file als_genome_harmonize --make-bed --out als_genome_harmonize
 
 # 2) Resolve strand issues.
 # Check for potential strand issues.
 awk '{print$2,$5,$6}' 1000G_snp_match_build.bim > 1000G_tmp
-awk '{print$2,$5,$6}' als_ref_match.bim > als_tmp
+awk '{print$2,$5,$6}' als_genome_harmonize.bim > als_tmp
 sort 1000G_tmp als_tmp |uniq -u > all_differences.txt
 
 ## Flip SNPs for resolving strand issues.
 # Print SNP-identifier and remove duplicates.
 awk '{print$1}' all_differences.txt | sort -u > flip_list.txt
-plink --bfile als_ref_match --flip flip_list.txt --reference-allele 1000G_ref_list.txt --make-bed --out corrected_als
+plink --bfile als_genome_harmonize --flip flip_list.txt --reference-allele 1000G_ref_list.txt --make-bed --out corrected_als
 
 # Check for SNPs which are still problematic after they have been flipped.
 awk '{print$2,$5,$6}' corrected_als.bim > corrected_als_tmp
@@ -82,21 +89,48 @@ plink --bfile als_1000G_merge --read-genome ./MDS/merge.genome --cluster --mds-p
 
 
 ```{r}
-tg_pop <- read.table("/scratch/png_project_root/png_project1/shared_data/1000genomes/ancestrydat/1000gene_pops.txt")
-colnames(tg_pop) <- c('id','sex','superpop','pop')
-saveRDS(tg_pop, file='tg_pop.RDA')
+# tg_pop <- read.table("/scratch/png_project_root/png_project1/shared_data/1000genomes/ancestrydat/1000gene_pops.txt")
+# colnames(tg_pop) <- c('id','sex','superpop','pop')
+# saveRDS(tg_pop, file='tg_pop.RDA')
+tg_pop <- readRDS('tg_pop.RDA')
 
 library(openxlsx)
-als_pop <- read.table("als_ready_for_merge.fam")
-als_pop <- als_pop[,c(2,3)]
-colnames(als_pop) <- c('id','superpop')
-als_pop$superpop <- "" 
+library(scales)
+als_pop <- read.xlsx("../pd.xlsx")
+als_pop <- als_pop[,c(1,6,7)]
+colnames(als_pop) <- c('id','superpop','ethnicity')
+als_pop$superpop <- 
+      ifelse(als_pop$superpop %in% c("caucasian", "white"), "WHITE OR CAUCASIAN",
+      ifelse(als_pop$superpop %in% c("black/african american"), "BLACK OR AFRICAN AMERICAN",
+      ifelse(als_pop$superpop=="other asian", "ASIAN", als_pop$superpop)))
+als_pop$superpop <- 
+      ifelse(als_pop$ethnicity=="Hispanic or Latino", "HISPANIC OR LATINO", als_pop$superpop)
+als_pop <- als_pop[,c(1,2)]
+
+#get genetic ids, make sure it matches
+als_ids <- read.table("als_snp_match.fam")
+table(als_ids$V2 %in% als_pop$id)
+# FALSE  TRUE
+#   349   141
+als_pop$id <- as.numeric(als_pop$id)
+table(als_ids$V2 %in% als_pop$id)
+# FALSE  TRUE
+#     3   487
+als_ids$V2[!als_ids$V2 %in% als_pop$id]
+# _0086 3968  8990
+table(als_pop$id %in% als_ids$V2)
+als_pop$id[!als_pop$id %in% als_ids$V2]
+als_pop$id <- ifelse(als_pop$id==86, '_0086',als_pop$id)
+table(als_ids$V2 %in% als_pop$id)
+# FALSE  TRUE
+#     2   488
 
 tg_pop_m <- tg_pop[,c(1,3)]
 pop_m <- rbind(tg_pop_m,als_pop)
 
 data <- read.table(file="MDS/merge_mds.mds",header=TRUE)
 mds <- merge(data, pop_m, by.x="IID", by.y="id")
+
 mds$col <- ifelse(mds$superpop=='AFR', 'darkolivegreen1', 
 			ifelse(mds$superpop=='AMR', 'coral',
 			ifelse(mds$superpop=='EAS', 'paleturquoise',
@@ -105,22 +139,23 @@ mds$col <- ifelse(mds$superpop=='AFR', 'darkolivegreen1',
 			ifelse(mds$superpop=='WHITE OR CAUCASIAN', 'firebrick2',
 			ifelse(mds$superpop=='BLACK OR AFRICAN AMERICAN', 'darkgreen',
 			ifelse(mds$superpop=='ASIAN', 'lightblue3',
-			ifelse(mds$superpop=='hispanic', 'darkorange3', 'gray11')))))))))
+			ifelse(mds$superpop=='HISPANIC OR LATINO', 'coral', 'gray11')))))))))
+mds$col <- ifelse(is.na(mds$col),'gray11',mds$col)
 
 col_ref <- unique(mds[,c('superpop','col')])
-col_ref_tg <- col_ref[2:6,]
-col_ref_als <- col_ref[1,]
+col_ref_tg <- col_ref[6:10,]
+col_ref_als <- col_ref[1:5,]
 
 pdf('MDS/MDS.pdf')
-  mds_tg <- mds[mds$IID %in% als_pop$id,]
-  mds_als <- mds[!mds$IID %in% als_pop$id,]
+  mds_tg <- mds[mds$IID %in% tg_pop$id,]
+  mds_als <- mds[!mds$IID %in% tg_pop$id,]
   #mds_als$superpop <- relevel(factor(mds_als$superpop), ref="WHITE OR CAUCASIAN")
   #mds_als <- mds_als[order(mds_als$superpop),]
   
-  plot(mds_tg$C1, mds_tg$C2, col=mds_tg$col)
-  points(mds_als$C1, mds_als$C2, col=mds_als$col, pch=15)
+  plot(mds_tg$C1, mds_tg$C2, col=alpha(mds_tg$col,0.4), ylim=c(-0.06, 0.06), pch=15)
+  points(mds_als$C1, mds_als$C2, col=mds_als$col)
   legend('bottomright', title='1000 genomes groups', legend=col_ref_tg$superpop, fill=col_ref_tg$col)
-  #legend('topright', title='ALS groups', legend=col_ref_als$superpop, fill=col_ref_als$col)
+  legend('topright', title='ALS groups', legend=col_ref_als$superpop, fill=col_ref_als$col)
 dev.off()
 
 
