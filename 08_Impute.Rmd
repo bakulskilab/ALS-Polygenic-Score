@@ -1,0 +1,285 @@
+---
+title: "08_Impute"
+author: "John Dou"
+date: "February 11, 2021"
+output: html_document
+---
+
+```{batch}
+module load Bioinformatics
+module load plink/1.9
+module load shapeit
+module load R
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/08_Impute/
+
+```
+
+## merge with old data
+
+```{batch}
+
+# Extract the variants present in als dataset 1 from als dataset 2
+awk '{print$2}' /nfs/turbo/bakulski1/People/johndou/ALS/07_ancestry/Merge/als_ready_for_merge.bim > Merge/als1_SNPs.txt
+plink --bfile ../07_Ancestry/als_ready_for_merge --extract Merge/als1_SNPs.txt --make-bed --out Merge/als2_snp_match
+
+
+# Extract the variants present in als dataset 2 from als dataset 1
+awk '{print$2}' ../07_Ancestry/als_ready_for_merge.bim > Merge/als2_SNPs.txt
+plink --bfile /nfs/turbo/bakulski1/People/johndou/ALS/07_ancestry/Merge/als_ready_for_merge --extract Merge/als2_SNPs.txt  --make-bed --out Merge/als1_snp_match
+
+# make sure same build 
+plink --bfile /nfs/turbo/bakulski1/People/johndou/ALS/07_ancestry/1000G_QC/1000G_maf --allow-extra-chr --recode --out Merge/1000G_ref
+awk '{print$2,$4}' Merge/1000G_ref.map > Merge/build.txt
+plink --bfile Merge/als1_snp_match --update-map Merge/build.txt --make-bed --out Merge/als1_build
+plink --bfile Merge/als2_snp_match --update-map Merge/build.txt --make-bed --out Merge/als2_build
+
+
+java -Xms16g -jar /nfs/turbo/bakulski1/Software/GenotypeHarmonizer-1.4.23/GenotypeHarmonizer.jar \
+  --input Merge/als1_build \
+  --output Merge/als1_genome_harmonize \
+  --ref Merge/als2_build
+
+java -Xms16g -jar /nfs/turbo/bakulski1/Software/GenotypeHarmonizer-1.4.23/GenotypeHarmonizer.jar \
+  --input Merge/als2_build \
+  --output Merge/als2_genome_harmonize \
+  --ref Merge/als1_genome_harmonize
+
+
+# Merge als datasets
+plink --bfile Merge/als1_genome_harmonize \
+  --bmerge Merge/als2_genome_harmonize.bed Merge/als2_genome_harmonize.bim Merge/als2_genome_harmonize.fam \
+  --allow-no-sex --make-bed --out Merge/als_merged
+```
+
+## vcf convert
+
+```{batch}
+# vcf convert 
+
+for i in {1..22}; do
+	plink --bfile Merge/als_merged --chr $i --recode vcf --out VCF_Chr/als_$i
+done
+
+plink --bfile Merge/als_merged --chr XY --recode vcf --out VCF_Chr/als_PAR
+plink --bfile Merge/als_merged  --chr X --filter-males --recode vcf --out VCF_Chr/als_nPAR_male
+plink --bfile Merge/als_merged  --chr X --filter-females --recode vcf --out VCF_Chr/als_nPAR_female
+```
+
+## Phase check
+
+```{batch}
+
+for i in {1..22}; do
+	shapeit -check \
+		-V VCF_Chr/als_${i}.vcf \
+		-M /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Map/genetic_map_chr${i}_combined_b37.txt \
+		--input-ref /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Map/1000GP_Phase3_chr${i}.hap.gz /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Map/1000GP_Phase3_chr${i}.legend.gz /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Map/1000GP_Phase3.sample \
+		--output-log Phase/chr${i}_gwas_alignments \
+	  -T 8
+done
+
+```
+
+## Phasing
+
+```{batch}
+for i in {1..22}; do
+	shapeit -V VCF_Chr/als_${i}.vcf \
+        -M /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Map/genetic_map_chr${i}_combined_b37.txt \
+		--input-ref /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Map/1000GP_Phase3_chr${i}.hap.gz /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Map/1000GP_Phase3_chr${i}.legend.gz /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Map/1000GP_Phase3.sample \
+		-O Phase/als_phase_chr${i} \
+		-T 8
+done
+```
+
+## Impute
+
+```{batch}
+# convert to vcf
+	
+for i in {1..22}; do
+	shapeit -convert --input-haps Phase/als_phase_chr${i} --output-vcf Phase/als_phase_chr${i}_vcf
+done
+	
+
+# impute
+module load gcc/9.2.0
+
+for i in {1..22}; do
+	/nfs/turbo/bakulski1/People/johndou/Minimac4/release-build/minimac4 \
+  --refHaps /nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Ref/${i}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz \
+	--haps Phase/als_phase_chr${i}_vcf \
+	--prefix Out/als_impute_chr${i} \
+	--cpus 8
+done
+```
+
+
+#### combine
+
+```{batch}
+module load bcftools
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/08_Impute/Out/
+
+VCFS=$(find . -name "*dose.vcf.gz")
+
+for vcf in $VCFS; do
+  bcftools index $vcf
+done
+
+VCFS1=$(find . -name "als_impute_chr?.dose.vcf.gz")
+VCFS2=$(find . -name "als_impute_chr??.dose.vcf.gz")
+
+# bcftools merge als_impute_chrX_nPAR_female.dose.vcf.gz als_impute_chrX_nPAR_male.dose.vcf.gz -Oz -o ./combi/als_imputed_nPAR.vcf.gz
+bcftools concat $VCFS1 $VCFS2 -Oz -o als_imputed_PAR.vcf.gz
+
+# bcftools concat ./combi/als_imputed_PAR.vcf.gz ./combi/als_imputed_nPAR.vcf.gz -Oz -o ./combi/als_imputed.vcf.gz
+
+	
+plink -vcf als_imputed_PAR.vcf.gz --double-id --maf 0.01 --make-bed --out ../QC/als_imputed_PAR_maf01
+#plink -vcf ./combi/als_imputed_nPAR.vcf.gz --maf 0.01 --make-bed --out ./combi/als_imputed_nPAR_maf01
+```
+
+```{r}
+#infos <- list.files(pattern='.info')
+#info <- lapply(infos, read.table, header=T)
+#saveRDS(info, file="../QC/infos.rds")
+info <- readRDS("./combi/infos.rds")
+
+# info.PAR <- info[-c(23,24)]
+# info.nPAR.male <- info[[24]]
+# info.nPAR.female <- info[[23]]
+
+# rm(info)
+
+library(dplyr)
+infoPAR <- bind_rows(info)
+
+
+imp.PAR <- infoPAR[infoPAR$Genotyped=='Imputed',]
+gen.PAR <- infoPAR[infoPAR$Genotyped=='Genotyped',]
+
+imp.nPAR.male <- info.nPAR.male[info.nPAR.male$Genotyped=='Imputed',]
+gen.nPAR.male <- info.nPAR.male[info.nPAR.male$Genotyped=='Genotyped',]
+
+imp.nPAR.female <- info.nPAR.female[info.nPAR.female$Genotyped=='Imputed',]
+gen.nPAR.female <- info.nPAR.female[info.nPAR.female$Genotyped=='Genotyped',]
+
+mycol <- c(rgb(235, 20, 20, max = 255, alpha = 125),rgb(20, 20, 235, max = 255, alpha = 125))
+
+
+fix.factor <- function(n){
+	n$LooRsq <- as.numeric(as.character(n$LooRsq))
+	n$EmpR<- as.numeric(as.character(n$EmpR))
+	n$EmpRsq <- as.numeric(as.character(n$EmpRsq))
+	n
+}
+
+gen.PAR <- fix.factor(gen.PAR)
+gen.nPAR.male <- fix.factor(gen.nPAR.male)
+gen.nPAR.female <- fix.factor(gen.nPAR.female)
+
+plot.MAF <- function(MAF, title){
+	h <- hist(MAF, breaks=50, plot=FALSE) 
+	cuts <- cut(h$breaks, c(-Inf, 0.01, Inf))[-1]
+	par(mar=c(5.1,6.3,4.1,2.1))
+	plot(h, main = title, xlab = "MAF", ylab="", axes=FALSE, col=mycol[cuts], cex.lab=1.5, xlim=c(0,0.5))
+	axis(1, cex.axis=1.5)
+	axis(2, las=2, cex.axis=1.5) 
+	mtext("Frequency", side=2, line=5, cex=1.5)
+	abline(v=0.01, col="red")
+}
+
+pdf("../QC/MAF_distribution.pdf")
+	plot.MAF(infoPAR$MAF, "")
+dev.off()
+
+plot.nocut <- function(x, title, xlab){
+	h <- hist(x, breaks=50, plot=FALSE) 
+	par(mar=c(5.1,6.3,4.1,2.1))
+	plot(h, main = title, xlab = xlab, ylab="", axes=FALSE, col=mycol[2], cex.lab=1.5)
+	axis(1, cex.axis=1.5)
+	axis(2, las=2, cex.axis=1.5) 
+	mtext("Frequency", side=2, line=5, cex=1.5)
+}
+
+# pdf("./combi/AvgCall_distribution.pdf")
+# 	plot.nocut(imp.PAR$AvgCall, "Avg Call Autosomal and PAR Imputed", xlab="Avg Call")
+# 	plot.nocut(gen.PAR$AvgCall, "Avg Call Autosomal and PAR Genotyped", xlab="Avg Call")
+# 	plot.nocut(imp.nPAR.male$AvgCall, "Avg Call nPAR Male Imputed", xlab="Avg Call")
+# 	plot.nocut(gen.nPAR.male$AvgCall, "Avg Call nPAR Male Genotyped", xlab="Avg Call")
+# 	plot.nocut(imp.nPAR.female$AvgCall, "Avg Call nPAR Female Imputed", xlab="Avg Call")
+# 	plot.nocut(gen.nPAR.female$AvgCall, "Avg Call nPAR Female Genotyped", xlab="Avg Call")
+# dev.off()
+
+pdf("../QC/Rsq_distribution.pdf")
+	plot.nocut(infoPAR$Rsq, "Rsq", xlab="Rsq")
+dev.off()
+
+# 
+# imp.PAR2 <- imp.PAR[imp.PAR$MAF>0.01,]
+# imp.nPAR.male2 <- imp.nPAR.male[imp.nPAR.male$MAF>0.01,]
+# imp.nPAR.female2 <- imp.nPAR.female[imp.nPAR.female$MAF>0.01,]
+# 	
+# pdf("./combi/Rsq_distribution_MAF01.pdf")
+# 	plot.nocut(imp.PAR2$Rsq, "Rsq Autosomal and PAR Imputed", xlab="Rsq")
+# 	plot.nocut(imp.nPAR.male2$Rsq, "Rsq nPAR Male Imputed", xlab="Rsq")
+# 	plot.nocut(imp.nPAR.female2$Rsq, "Rsq nPAR Female Imputed", xlab="Rsq")
+# dev.off()
+# 
+# 
+# pdf("./combi/Genotyped_Stats_distribution.pdf")
+# 	plot.nocut(gen.PAR$LooRsq, "LooRsq Autosomal and PAR Genotyped", xlab="LooRsq")
+# 	plot.nocut(gen.nPAR.male$LooRsq, "LooRsq nPAR Male Genotyped", xlab="LooRsq")
+# 	plot.nocut(gen.nPAR.female$LooRsq, "LooRsq nPAR Female Genotyped", xlab="LooRsq")
+# 	plot.nocut(gen.PAR$EmpR, "EmpR Autosomal and PAR Genotyped", xlab="EmpR")
+# 	plot.nocut(gen.nPAR.male$EmpR, "EmpR nPAR Male Genotyped", xlab="EmpR")
+# 	plot.nocut(gen.nPAR.female$EmpR, "EmpR nPAR Female Genotyped", xlab="EmpR")
+# 	plot.nocut(gen.PAR$EmpRsq, "EmpRsq Autosomal and PAR Genotyped", xlab="EmpRsq")
+# 	plot.nocut(gen.nPAR.male$EmpRsq, "EmpRsq nPAR Male Genotyped", xlab="EmpRsq")
+# 	plot.nocut(gen.nPAR.female$EmpRsq, "EmpRsq nPAR Female Genotyped", xlab="EmpRsq")
+# dev.off()
+# 
+# 
+# table(imp.PAR$Rsq>0.5)
+# table(imp.nPAR.male$Rsq>0.5)
+# table(imp.nPAR.female$Rsq>0.5)
+# 
+# imp.PAR2 <- imp.PAR[imp.PAR$Rsq>0.5,]
+# imp.nPAR.male2 <- imp.nPAR.male[imp.nPAR.male$Rsq>0.5,]
+# imp.nPAR.female2 <- imp.nPAR.female[imp.nPAR.female$Rsq>0.5,]
+
+
+#filter on imputation quality
+
+nrow(infoPAR) #47109465
+# nrow(info.nPAR.male) #1825701
+# nrow(info.nPAR.female) #1825701
+
+infoPAR2 <- infoPAR[infoPAR$Rsq>0.5,]
+# info.nPAR.male2 <- info.nPAR.male[info.nPAR.male$Rsq>0.5,]
+# info.nPAR.female2 <- info.nPAR.female[info.nPAR.female$Rsq>0.5,]
+
+nrow(infoPAR2) #13529770
+# nrow(info.nPAR.male2) #288586
+# nrow(info.nPAR.female2) #195737
+
+infoPAR2 <- infoPAR2[infoPAR2$MAF>0.01,]
+# info.nPAR.male2 <- info.nPAR.male2[info.nPAR.male2$MAF>0.01,]
+# info.nPAR.female2 <- info.nPAR.female2[info.nPAR.female2$MAF>0.01,]
+
+nrow(info.PAR2) #8179459
+# nrow(info.nPAR.male2) #247668
+# nrow(info.nPAR.female2) #185528
+
+write.table(infoPAR2$SNP, row.names=F, col.names=F, quote=F, file="../QC/snps_par.txt")
+# write.table(info.nPAR.male2$SNP, row.names=F, col.names=F, quote=F, file="/nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Filter/snps_npar_m.txt")
+# write.table(info.nPAR.female2$SNP, row.names=F, col.names=F, quote=F, file="/nfs/turbo/bakulski1/People/johndou/ALS/08_impute/Filter/snps_npar_f.txt")
+```
+
+```{batch}
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/08_Impute/
+
+plink -vcf Out/als_imputed_PAR.vcf.gz --double-id --extract QC/snps_par.txt --make-bed --out QC/als_imputed_filter
+```
