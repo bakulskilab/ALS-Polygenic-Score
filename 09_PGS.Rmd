@@ -1,0 +1,343 @@
+---
+title: "09_PGS"
+author: "John Dou"
+date: "February 18, 2021"
+output: html_document
+---
+
+```{batch}
+module load Bioinformatics
+module load plink/1.9
+module load R
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/
+
+```
+
+```{r}
+library(openxlsx)
+
+fam <- read.table("../08_Impute/QC/als_imputed_filter.fam_old")
+#write.table(fam, file="../08_Impute/QC/als_imputed_filter.fam_old", col.names=F, row.names=F, quote=F)
+fam$V1 <- gsub("_.*","",fam$V1)
+fam$V2 <- gsub(".*_","",fam$V2)
+
+pd1 <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/pd_als.txt", header=T)
+pd1$FELD_ID <- as.character(pd1$FELD_ID)
+pd2 <- read.xlsx("../pd.xlsx")
+pd2$epi_study_id <- as.numeric(pd2$epi_study_id)
+
+table(pd1$FELD_ID %in% fam$V2)
+table(pd2$epi_study_id %in% fam$V2)
+table(fam$V2 %in% c(pd1$FELD_ID, pd2$epi_study_id))
+
+fam$V2[!fam$V2 %in% c(pd1$FELD_ID, pd2$epi_study_id)]
+
+fam$V2 <- ifelse(fam$V2=="0086", "86", fam$V2)
+
+write.table(fam, file="../08_Impute/QC/als_imputed_filter.fam", col.names=F, row.names=F, quote=F)
+
+pd1.s <- pd1[,c('FELD_ID', 'subject_type', 'symptom_onset_date_age_at')]
+colnames(pd1.s) <- c('epi_study_id', 'subject_type', 'symptom_onset_date_age_at')
+
+pd2.s <- pd2[,c('epi_study_id', 'subject_type','symptom_onset_date_age_at')]
+pd2.s$subject_type <- ifelse(pd2.s$subject_type=='at risk', 'control', pd2.s$subject_type)
+pd2.s$subject_type <- ifelse(pd2.s$subject_type=='control', 0, 1)
+
+ids <- fam[,c(1,2)]
+ids <- ids[ids$V2 %in% pd2.s$epi_study_id,]
+pd2.s <- pd2.s[match(ids$V2,pd2.s$epi_study_id),]
+pd2.s$FID <- ids$V1
+pd2.s <- pd2.s[,c(4,1,2,3)]
+
+write.table(ids, file='subs.txt', row.names=F, col.names=F, quote=F)
+write.table(pd2.s, file='als_status.txt', row.names=F, quote=F)
+```
+
+
+```{batch}
+plink --bfile ../08_Impute/QC/als_imputed_filter --keep subs.txt --make-bed --out als2
+
+plink --bfile als2 --pca --out ../imputed_pca
+
+R
+
+bim <- read.table(file="als2.bim", colClasses=c('character','character','numeric','numeric','character','character'))
+
+snp <- paste0(bim$V1,':', bim$V4)
+bim$V2 <- snp
+write.table(bim, file='als2.bim', col.names=F, row.names=F, quote=F)
+```
+
+
+```{batch}
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/
+  
+Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/ \
+  --prsice /nfs/turbo/bakulski1/Software/PRSice2/PRSice_linux \
+  --base /nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/als_gwas \
+  --target ../als2 \
+  --thread 1 \
+	--A1 A1 \
+	--A2 A2 \
+	--pvalue P \
+	--snp SNP \
+	--chr CHR \
+	--bp BP \
+	--beta \
+  --binary-target T \
+	--pheno ../als_status.txt \
+	--pheno-col subject_type \
+	--all-score \
+  --extract PRSice.valid \
+	--print-snp
+
+
+snps <- read.table('PRSice.snp', skip=1)
+snps.p <- snps[snps$V4<0.000100005,]
+
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS_OnsetAge/
+  
+Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS_OnsetAge/ \
+  --prsice /nfs/turbo/bakulski1/Software/PRSice2/PRSice_linux \
+  --base /nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/als_gwas \
+  --target ../als2 \
+  --thread 1 \
+	--A1 A1 \
+	--A2 A2 \
+	--pvalue P \
+	--snp SNP \
+	--chr CHR \
+	--bp BP \
+	--beta \
+  --binary-target F \
+	--pheno ../als_status.txt \
+	--pheno-col symptom_onset_date_age_at \
+	--all-score \
+  --extract ../ALS/PRSice.valid \
+	--print-snp
+
+```
+
+```{r}
+library(openxlsx)
+library(ggplot2)
+
+path <- "F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/Code/Goutman_348/"
+
+pd2 <- read.xlsx(file.path(path,"ALS-Genotype-QC/pd.xlsx"))
+pd2$epi_study_id <- as.numeric(pd2$epi_study_id)
+
+pc <- read.table(file.path(path,"ALS-Genotype-QC/PGS/imputed_pca.eigenvec"))
+table(pc$V2 %in% pd2$epi_study_id)
+table(pd2$epi_study_id %in% pc$V2)
+colnames(pc) <- c('FID','IID',paste0('PC',1:20))
+pc <- pc[,-1]
+pd2 <- merge(pd2, pc, by.x='epi_study_id', by.y='IID', all.x=T)
+
+pgs.als <- read.table(file.path(path,"ALS-Genotype-QC/PGS/PRSice.all.score"), header=T)
+pd2 <- pd2[match(pgs.als$IID, pd2$epi_study_id),]
+pd2$subject_type <- ifelse(pd2$subject_type=='at risk', 'control', pd2$subject_type)
+pd2$subject_type <- factor(pd2$subject_type, levels=c("control","case"))
+
+best <- pgs.als[,"X0.00010005"]
+all <- pgs.als[,"X1"]
+
+hist(best)
+hist(all)
+
+bm <- mean(best)
+am <- mean(all)
+
+best <- (best-bm)/sd(best)
+all <- (all-am)/sd(all)
+
+pd2$pgs_best <- best
+pd2$pgs_all <- all
+
+
+
+### traynor data
+pd1 <- readRDS("F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/PGS/pd_als.rds")
+pd.race <- read.xlsx("F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/20200110_Illumina OmniExpress_nonrepeating.xlsx")
+pd.race <- pd.race[match(pd1$IID,pd.race$FELD_ID),]
+pd1$race_not_harmonized <- pd.race$race_not_harmonized
+pd1$ethnicity <- pd.race$ethnicity
+pd1$subject_type <- "case"
+pd1$pgs_best <- NA
+pd1$pgs_all <- NA
+
+###
+pd2$raceth <- 
+      ifelse(pd2$race_not_harmonized %in% c("caucasian", "white"), "WHITE OR CAUCASIAN",
+      ifelse(pd2$race_not_harmonized %in% c("black/african american"), "BLACK OR AFRICAN AMERICAN",
+      ifelse(pd2$race_not_harmonized=="other asian", "ASIAN", pd2$race_not_harmonized)))
+pd2$raceth <- 
+      ifelse(pd2$ethnicity=="Hispanic or Latino", "HISPANIC OR LATINO", pd2$raceth)
+
+pd1$raceth <- 
+      ifelse(pd1$race_not_harmonized %in% c("caucasian", "white"), "WHITE OR CAUCASIAN",
+      ifelse(pd1$race_not_harmonized %in% c("black/african american"), "BLACK OR AFRICAN AMERICAN",
+      ifelse(pd1$race_not_harmonized=="other asian", "ASIAN", pd1$race_not_harmonized)))
+pd1$raceth <- 
+      ifelse(pd1$ethnicity=="Hispanic or Latino", "HISPANIC OR LATINO", pd1$raceth)
+
+
+
+
+```
+
+```{r table1}
+library(compareGroups)
+
+restab2 <- compareGroups(subject_type ~ pgs_best + pgs_all + sex +
+                          onset_segment + symptom_onset_date_age_at + 
+                          raceth,
+                        data=pd2)
+
+restab1 <- compareGroups(subject_type ~ pgs_best + pgs_all + sex +
+                          segment + symptom_onset_date_age_at + 
+                          raceth,
+                        data=pd1)
+
+
+tab1A <- createTable(restab2)
+tab1B <- createTable(restab1)
+
+export2word(tab1A, file=file.path(path,'Tables/table1.docx'))
+
+tab1A
+tab1B
+```
+
+
+
+# ALS Models
+```{r pgs_mods}
+pd2 <- pd2[pd2$fam_hx_als != "Unknown",]
+
+summary(glm(pd2$subject_type ~ pd2$pgs_all + pd2$sex + pd2$fam_hx_als + pd2$PC1 + pd2$PC2 + pd2$PC3 + pd2$PC4 + pd2$PC5, family = binomial("logit")))
+summary(glm(pd2$subject_type ~ pd2$pgs_best + pd2$sex + pd2$fam_hx_als + pd2$PC1 + pd2$PC2 + pd2$PC3  + pd2$PC4 + pd2$PC5, family = binomial("logit")))
+
+ggplot(data=pd2, aes(x=subject_type, y=all)) +
+  geom_boxplot() + theme_classic()
+
+ggplot(data=pd2, aes(x=subject_type, y=best)) +
+  geom_boxplot() + theme_classic()
+```
+
+# Symptom Onset Age models
+```{r}
+#case only
+pd2.case <- pd2[pd2$subject_type=="case",]
+pd2.case <- pd2.case[!pd2.case$onset_segment %in% c("Cannot be determined", "Respiratory", "Thoracic"),]
+
+summary(glm(symptom_onset_date_age_at ~ pgs_best + sex + onset_segment + fam_hx_als + PC1 + PC2 + PC3 + PC4 + PC5, data=pd2.case))
+
+ggplot(data=pd2.case, aes(x=pgs_best, y=symptom_onset_date_age_at)) +
+  geom_point() +
+  geom_smooth(method='lm') + theme_classic()
+
+plot(pd2.case$pgs.best, pd2.case$symptom_onset_date_age_at)
+
+summary(glm(symptom_onset_date_age_at ~ pgs_all + sex + onset_segment + fam_hx_als + PC1 + PC2 + PC3 + PC4 + PC5, data=pd2.case))
+
+ggplot(data=pd2.case, aes(x=pgs_all, y=symptom_onset_date_age_at)) +
+  geom_point() +
+  geom_smooth(method='lm') + theme_classic()
+
+#only euro ancestry
+
+pd2$raceth <- 
+      ifelse(pd2$race_not_harmonized %in% c("caucasian", "white"), "WHITE OR CAUCASIAN",
+      ifelse(pd2$race_not_harmonized %in% c("black/african american"), "BLACK OR AFRICAN AMERICAN",
+      ifelse(pd2$race_not_harmonized=="other asian", "ASIAN", pd2$race_not_harmonized)))
+pd2$raceth <- 
+      ifelse(pd2$ethnicity=="Hispanic or Latino", "HISPANIC OR LATINO", pd2$raceth)
+
+ggplot(data=pd2, aes(x=PC1, y=PC2, col=raceth)) +
+  geom_point()
+
+
+pd2.case.euro <- pd2.case[pd2.case$PC1 < .01 & pd2.case$PC2 < 0.75,]
+
+summary(glm(symptom_onset_date_age_at ~ pgs.best + sex + onset_segment + PC1 + PC2 + PC3 + PC4 + PC5, data=pd2.case.euro))
+
+ggplot(data=pd2.case.euro, aes(x=pgs.best, y=symptom_onset_date_age_at)) +
+  geom_point() +
+  geom_smooth(method='lm')
+
+summary(glm(symptom_onset_date_age_at ~ pgs.all + sex + onset_segment + PC1 + PC2 + PC3 + PC4 + PC5, data=pd2.case.euro))
+
+ggplot(data=pd2.case.euro, aes(x=pgs.all, y=symptom_onset_date_age_at)) +
+  geom_point() +
+  geom_smooth(method='lm')
+
+
+
+```
+# Pathway
+```{r}
+snps <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/PRSice.snp", row.names=NULL)
+gwas <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/als_gwas", header=T)
+
+colnames(snps) <- c("CHR","SNP","BP","P","Base","X")
+table(snps$SNP %in% gwas$SNP)
+#   TRUE
+# 254307
+
+pgs.snps <- snps[snps$P <= 0.00010005,]
+pgs.snps$SNP <- as.character(pgs.snps$SNP)
+
+load("/nfs/turbo/bakulski1/People/johndou/PGC_Pb/genes_als.rda")
+
+pgs.genes <- gene_map[gene_map$SNP %in% pgs.snps$SNP,]
+
+pgs.genes$gene_name <- paste0(" ", pgs.genes$gene_name)
+write.csv(pgs.genes, file="/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/pgs_snps_used.csv")
+
+write.table(trimws(pgs.genes$gene_name), file="/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/pgs_snps_used_gene.txt", row.names=F, col.names=F, quote=F)
+
+pgs.genes <- read.csv("F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/Code/Goutman_348/pgs_snps_used.csv")
+```
+
+# C9 haplotype
+```{r}
+haplotype <- paste0("9:",c("27357278", 
+               "27362053", "27375002", "27376505", "27392961",
+               "27399264", "27420232", "27428411", "27433802",
+               "27435104", "27437089", "27440211", "27441960",
+               "27442240", "27443037", "27444173", "27448939",
+               "27458461", "27467874", "27468052", "27472235",
+               "27473959", "27479251", "27480967", "27485418",
+               "27492986", "27519316", "27523984", "27526397",
+               "27533281", "27543876", "27546780", "27547919",
+               "27549733", "27551049", "27562255", "27565785",
+               "27569560", "27576162", "27578731", "27579657",
+               "27589746"))
+riskallele <- c("T","C","A","A","C",
+                "C","G","G","G","A",
+                "C","T","A","G","G",
+                "C","A","T","A","C",
+                "T","T","T","A","A",
+                "C","C","C","A","A",
+                "T","G","T","G","C",
+                "G","C","G","G","A",
+                "G","T")
+write.table(haplotype, file="F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/Code/Goutman_348/ALS-Genotype-QC/C9_Haplotype/c9_snps.txt", quote=F, row.names=F, col.names=F)
+```
+
+```{batch}
+srun --nodes=1 --ntasks-per-node=1 --mem-per-cpu=16g --account=bakulski1 --time=03:00:00 --pty /bin/bash
+
+module load Bioinformatics
+module load plink/1.9
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/C9_Haplotype
+
+plink --vcf ../08_Impute/Phase/als_phase_chr9_vcf --keep-allele-order --double-id --out chr9
+plink --bfile chr9 --keep c9_snps.txt --recode --out chr9_haplo
+
+
+```
