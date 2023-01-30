@@ -1,76 +1,34 @@
 ---
-title: "09_PGS"
+title: "ALS_PGS"
 author: "John Dou"
-date: "February 18, 2021"
+date: "May 4, 2021"
 output: html_document
 ---
 
-```{batch}
-module load Bioinformatics
-module load plink/1.9
-module load R
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 
-cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/
-
-```
-
-```{r}
+library(knitr)
+library(kableExtra)
+library(magrittr)
+library(dplyr)
+library(gtsummary)
 library(openxlsx)
+library(ggplot2)
 
-fam <- read.table("../08_Impute/QC/als_imputed_filter.fam_old")
-#write.table(fam, file="../08_Impute/QC/als_imputed_filter.fam_old", col.names=F, row.names=F, quote=F)
-fam$V1 <- gsub("_.*","",fam$V1)
-fam$V2 <- gsub(".*_","",fam$V2)
+library(logistf)
 
-pd1 <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/pd_als.txt", header=T)
-pd1$FELD_ID <- as.character(pd1$FELD_ID)
-pd2 <- read.xlsx("../pd.xlsx")
-pd2$epi_study_id <- as.numeric(pd2$epi_study_id)
 
-table(pd1$FELD_ID %in% fam$V2)
-table(pd2$epi_study_id %in% fam$V2)
-table(fam$V2 %in% c(pd1$FELD_ID, pd2$epi_study_id))
+path <- "K:/.shortcut-targets-by-id/1VuMEXcxmMUHYhP8aQ624XtLZvMK-are8/ALS/Genetics/Genetic_Data_Cleaning/Goutman_348_New_Sample/"
+output <- "K:/.shortcut-targets-by-id/1VuMEXcxmMUHYhP8aQ624XtLZvMK-are8/ALS/Genetics/ALS_PGS_CaseControl/"
 
-fam$V2[!fam$V2 %in% c(pd1$FELD_ID, pd2$epi_study_id)]
 
-fam$V2 <- ifelse(fam$V2=="0086", "86", fam$V2)
-
-write.table(fam, file="../08_Impute/QC/als_imputed_filter.fam", col.names=F, row.names=F, quote=F)
-
-pd1.s <- pd1[,c('FELD_ID', 'subject_type', 'symptom_onset_date_age_at')]
-colnames(pd1.s) <- c('epi_study_id', 'subject_type', 'symptom_onset_date_age_at')
-
-pd2.s <- pd2[,c('epi_study_id', 'subject_type','symptom_onset_date_age_at')]
-pd2.s$subject_type <- ifelse(pd2.s$subject_type=='at risk', 'control', pd2.s$subject_type)
-pd2.s$subject_type <- ifelse(pd2.s$subject_type=='control', 0, 1)
-
-ids <- fam[,c(1,2)]
-ids <- ids[ids$V2 %in% pd2.s$epi_study_id,]
-pd2.s <- pd2.s[match(ids$V2,pd2.s$epi_study_id),]
-pd2.s$FID <- ids$V1
-pd2.s <- pd2.s[,c(4,1,2,3)]
-
-write.table(ids, file='subs.txt', row.names=F, col.names=F, quote=F)
-write.table(pd2.s, file='als_status.txt', row.names=F, quote=F)
 ```
 
 
-```{batch}
-plink --bfile ../08_Impute/QC/als_imputed_filter --keep subs.txt --make-bed --out als2
-
-plink --bfile als2 --pca --out ../imputed_pca
-
-R
-
-bim <- read.table(file="als2.bim", colClasses=c('character','character','numeric','numeric','character','character'))
-
-snp <- paste0(bim$V1,':', bim$V4)
-bim$V2 <- snp
-write.table(bim, file='als2.bim', col.names=F, row.names=F, quote=F)
-```
-
-
-```{batch}
+# Running PRSice
+code ran on computing cluster
+```{bash eval=F}
 cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/
   
 Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/ \
@@ -91,18 +49,26 @@ Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski
 	--all-score \
   --extract PRSice.valid \
 	--print-snp
+	
+	
+	
+### test
+
+miss_snp <- read.table("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/MissingSnps.txt") ##81 SNPs
+pgs_snp <- read.csv("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/snps_used.csv")
+
+table(miss_snp$V1 %in% pgs_snp$SNP)
+mini_snp <- pgs_snp[!pgs_snp$SNP %in% miss_snp$V1,]
+write.table(mini_snp, row.names=F, quote=F, file="K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/snps_mini.txt")
 
 
-snps <- read.table('PRSice.snp', skip=1)
-snps.p <- snps[snps$V4<0.000100005,]
 
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/Downsized_PGS_Test/
 
-cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS_OnsetAge/
-  
-Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS_OnsetAge/ \
+Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/Downsized_PGS_Test/ \
   --prsice /nfs/turbo/bakulski1/Software/PRSice2/PRSice_linux \
-  --base /nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/als_gwas \
-  --target ../als2 \
+  --base snps_mini.txt \
+  --target /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/als2 \
   --thread 1 \
 	--A1 A1 \
 	--A2 A2 \
@@ -111,31 +77,182 @@ Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski
 	--chr CHR \
 	--bp BP \
 	--beta \
-  --binary-target F \
-	--pheno ../als_status.txt \
-	--pheno-col symptom_onset_date_age_at \
+  --binary-target T \
+	--pheno /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/als_status.txt \
+	--pheno-col subject_type \
+	--no-clump \
+	--all-score
+	
+	
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/
+plink --bfile ../als2 --keep euroID --make-bed --out euro_sample
+
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/euro_limit_source/
+
+Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/euro_limit_source/ \
+  --prsice /nfs/turbo/bakulski1/Software/PRSice2/PRSice_linux \
+  --base ../als_gwas_sp \
+  --target ../euro_sample \
+  --thread 1 \
+	--A1 A1 \
+	--A2 A2 \
+	--pvalue P \
+	--snp SNP \
+	--chr CHR \
+	--bp BP \
+	--beta \
+  --binary-target T \
+	--pheno ../../als_status.txt \
+	--pheno-col subject_type \
 	--all-score \
-  --extract ../ALS/PRSice.valid \
+  --extract ../PRSice.valid \
 	--print-snp
 
 ```
 
-```{r}
-library(openxlsx)
+
+# take SNPs used in PGS
+```{bash eval=F}
+module load Bioinformatics
+module load plink/1.9
+
+plink --bfile ../als2 --extract snps_extract.txt --recode --out PGS_SNPS
+```
+
+
+# pgs creation bar chart
+```{r eval=F}
 library(ggplot2)
+library(grid)
+library(gridExtra)
 
-path <- "F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/Code/Goutman_348/"
+pgs_snps <- read.table("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/PRSice.prsice", header=T)
+pgs_snps_noc9 <- read.table("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/PRSice_noc9.prsice", header=T)
 
+pgs_snps[pgs_snps$R2==max(pgs_snps$R2),]
+pgs_snps_noc9[pgs_snps_noc9$R2==max(pgs_snps_noc9$R2),]
+pgs_snps_noc9[pgs_snps_noc9$P==min(pgs_snps_noc9$P),]
+
+pgs_snps <- pgs_snps[pgs_snps$Threshold %in% c(0.00010005, 0.001, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1), ]
+pgs_snps_noc9 <- pgs_snps_noc9[pgs_snps_noc9$Threshold %in% c(0.00010005, 0.001, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1), ]
+
+theme_sam <- theme_classic()+theme(axis.title=element_text(face="bold", size=18),
+                              axis.text=element_text(size=14),
+                              legend.title=element_text(face="bold", size=18),
+                              legend.text=element_text(size=14),
+                              axis.text.x=element_text(angle=45, hjust=1))
+
+pgs_bar_plot_all <- ggplot(data = pgs_snps, aes(x = factor(Threshold), y = R2)) +
+        geom_text(
+            aes(label = Num_SNP),
+            vjust = -1.5,
+            hjust = 0,
+            angle = 45,
+            cex = 4,
+            parse = T
+        )  +
+        theme_sam +
+        scale_y_continuous(expand = expand_scale(mult = c(0, .15))) +
+        xlab(expression(italic(P) - value ~ threshold ~ (italic(P)[T]))) +
+        ylab(expression(paste("Polygenic score model fit:  ", R ^ 2))) +
+        geom_bar(aes(fill = -log10(P)), stat = "identity") +
+        geom_text(aes(label = round(P,3), y=0.002),
+                  color='white') +
+        scale_fill_gradient2(
+          low='dodgerblue4',
+          mid='darkorchid',
+          high='firebrick',
+          midpoint=0.8,
+          name = bquote(atop(-log[10] ~ model, italic(P) - value), )
+      )
+
+
+pgs_bar_plot_noc9 <- ggplot(data = pgs_snps_noc9, aes(x = factor(Threshold), y = R2)) +
+        geom_text(
+            aes(label = Num_SNP),
+            vjust = -1.5,
+            hjust = 0,
+            angle = 45,
+            cex = 4,
+            parse = T
+        )  +
+        theme_sam +
+        scale_y_continuous(expand = expand_scale(mult = c(0, .15))) +
+        xlab(expression(italic(P) - value ~ threshold ~ (italic(P)[T]))) +
+        ylab(expression(paste("Polygenic score model fit:  ", R ^ 2))) +
+        geom_bar(aes(fill = -log10(P)), stat = "identity") +
+        geom_text(aes(label = round(P,3), y=0.002),
+                  color='white') +
+        scale_fill_gradient2(
+          low='dodgerblue4',
+          mid='darkorchid',
+          high='firebrick',
+          midpoint=0.8,
+          name = bquote(atop(-log[10] ~ model, italic(P) - value), )
+      )
+
+ggsave(pgs_bar_plot_all, file=file.path(output,"Figures/pgs_bar_plot_allSNPs.svg"),
+       height=9, width=9)
+ggsave(pgs_bar_plot_noc9, file=file.path(output,"Figures/pgs_bar_plot_noc9.svg"),
+       height=9, width=9)
+
+```
+
+
+# Setting up covariates
+```{r}
 pd2 <- read.xlsx(file.path(path,"ALS-Genotype-QC/pd.xlsx"))
 pd2$epi_study_id <- as.numeric(pd2$epi_study_id)
 
-pc <- read.table(file.path(path,"ALS-Genotype-QC/PGS/imputed_pca.eigenvec"))
-table(pc$V2 %in% pd2$epi_study_id)
-table(pd2$epi_study_id %in% pc$V2)
-colnames(pc) <- c('FID','IID',paste0('PC',1:20))
-pc <- pc[,-1]
-pd2 <- merge(pd2, pc, by.x='epi_study_id', by.y='IID', all.x=T)
 
+# famhis_miss <- pd2[is.na(pd2$fam_hx_als),]
+# famhis_miss <- famhis_miss[famhis_miss$subject_type=="case",]
+# write.csv(famhis_miss, file=file.path(output,"case_missing_famhx.csv"))
+
+#fill in some missing fam his info
+pd2$fam_hx_als <- ifelse(is.na(pd2$fam_hx_als) & pd2$subject_type=='control', 'No', pd2$fam_hx_als)
+pd2[pd2$epi_study_id==609, 'fam_hx_als'] <- 'No'
+pd2[pd2$epi_study_id==201, 'fam_hx_als'] <- 'Unknown'
+pd2[pd2$epi_study_id==1180, 'fam_hx_als'] <- 'No'
+pd2[pd2$epi_study_id==6599, 'fam_hx_als'] <- 'Unknown'
+pd2[pd2$epi_study_id==5876, 'fam_hx_als'] <- 'No'
+pd2$fam_hx_als1 <- pd2$fam_hx_als
+pd2$fam_hx_als <- ifelse(is.na(pd2$fam_hx_als), 'Unknown', pd2$fam_hx_als)
+
+
+### ancestry PCs
+pc_all <- read.table(file.path(path,"ALS-Genotype-QC/PGS/all_PCA.eigenvec"))
+pc_euro <- read.table(file.path(path,"ALS-Genotype-QC/PGS/euro_PCA.eigenvec"))
+
+pc_all <- pc_all[pc_all$V1!=0,]
+pc_euro <- pc_euro[pc_euro$V1!=0,]
+
+#what is missing
+table(pc_all$V2 %in% pd2$epi_study_id)
+pc_all$V2[!pc_all$V2 %in% pd2$epi_study_id]
+
+table(pc_euro$V2 %in% pd2$epi_study_id)
+pc_euro$V2[!pc_euro$V2 %in% pd2$epi_study_id]
+
+#fix some ids for merging
+pd2[grepl('86',pd2$epi_study_id),]
+pc_all[grepl('86',pc_all$V2),]
+
+pc_all$V2 <- ifelse(pc_all$V2=='_0086', 86, pc_all$V2)
+pc_euro$V2 <- ifelse(pc_euro$V2=='_0086', 86, pc_euro$V2)
+
+colnames(pc_all) <- c('FID','IID',paste0('PC',1:20))
+colnames(pc_euro) <- c('FID','IID',paste0('euroPC',1:20))
+
+pc_all <- pc_all[,-1]
+pc_euro <- pc_euro[,-1]
+pd2 <- merge(pd2, pc_all, by.x='epi_study_id', by.y='IID', all.x=T)
+pd2 <- merge(pd2, pc_euro, by.x='epi_study_id', by.y='IID', all.x=T)
+
+
+
+#PGS
 pgs.als <- read.table(file.path(path,"ALS-Genotype-QC/PGS/PRSice.all.score"), header=T)
 pd2 <- pd2[match(pgs.als$IID, pd2$epi_study_id),]
 pd2$subject_type <- ifelse(pd2$subject_type=='at risk', 'control', pd2$subject_type)
@@ -143,30 +260,37 @@ pd2$subject_type <- factor(pd2$subject_type, levels=c("control","case"))
 
 best <- pgs.als[,"X0.00010005"]
 all <- pgs.als[,"X1"]
+pgs.alsnoc9 <- read.table(file.path(path,"ALS-Genotype-QC/PGS/PRSice.bestnoc9"), header=T)
+bestnoc9 <- pgs.alsnoc9$PRS
 
-hist(best)
-hist(all)
+table(pgs.als$IID == pd2$epi_study_id)
+table(pgs.alsnoc9$IID == pd2$epi_study_id)
 
 bm <- mean(best)
 am <- mean(all)
+c9m <- mean(bestnoc9)
 
 best <- (best-bm)/sd(best)
 all <- (all-am)/sd(all)
+bestnoc9 <- (bestnoc9-c9m)/sd(bestnoc9)
 
 pd2$pgs_best <- best
 pd2$pgs_all <- all
+pd2$als_pgs_noc9 <- bestnoc9
 
 
+pgs.sp <- read.table(file.path(output,"/Data/PRSice_SP"), header=T)
+table(pgs.sp$IID %in% pd2$epi_study_id)
+pgs.sp <- pgs.sp[match(pd2$epi_study_id, pgs.sp$IID), ]
 
-### traynor data
-pd1 <- readRDS("F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/PGS/pd_als.rds")
-pd.race <- read.xlsx("F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/20200110_Illumina OmniExpress_nonrepeating.xlsx")
-pd.race <- pd.race[match(pd1$IID,pd.race$FELD_ID),]
-pd1$race_not_harmonized <- pd.race$race_not_harmonized
-pd1$ethnicity <- pd.race$ethnicity
-pd1$subject_type <- "case"
-pd1$pgs_best <- NA
-pd1$pgs_all <- NA
+spsnp <- pgs.sp[,"X5.005e.05"]
+spsnp.m <- mean(spsnp)
+pd2$pgs_sp <- (spsnp-spsnp.m) / sd(spsnp)
+
+e_sp <- pgs.sp[,"X0.0699001"]
+e_sp.m <- mean(e_sp)
+pd2$pgs_e_sp <- (e_sp-e_sp.m) / sd(e_sp)
+
 
 ###
 pd2$raceth <- 
@@ -176,168 +300,1083 @@ pd2$raceth <-
 pd2$raceth <- 
       ifelse(pd2$ethnicity=="Hispanic or Latino", "HISPANIC OR LATINO", pd2$raceth)
 
-pd1$raceth <- 
-      ifelse(pd1$race_not_harmonized %in% c("caucasian", "white"), "WHITE OR CAUCASIAN",
-      ifelse(pd1$race_not_harmonized %in% c("black/african american"), "BLACK OR AFRICAN AMERICAN",
-      ifelse(pd1$race_not_harmonized=="other asian", "ASIAN", pd1$race_not_harmonized)))
-pd1$raceth <- 
-      ifelse(pd1$ethnicity=="Hispanic or Latino", "HISPANIC OR LATINO", pd1$raceth)
+
+
+# Additional C9 measures
+c9dat <- read.xlsx("F:/Dropbox (University of Michigan)/Kelly & John Work (ALS Genetics)/Datasets/C9 results Jan 2022/Goutman_rppcr_final_results_08Apr2022_additional.xlsx")
+
+# c9dat <- read.xlsx("F:/Dropbox (University of Michigan)/Kelly & John Work (ALS Genetics)/Datasets/C9 results Jan 2022/Goutman_rppcr_final_results_01132022.xlsx")
+
+table(c9dat$Patient_ID %in% pd2$epi_study_id)
+c9dat$Patient_ID <- gsub("C|F|_dup", "", c9dat$Patient_ID)
+c9dat$Patient_ID <- as.numeric(c9dat$Patient_ID)
+
+table(pd2$epi_study_id %in% c9dat$Patient_ID)
+table(c9dat$Patient_ID %in% pd2$epi_study_id, c9dat$RPPCR_result)
+pd2$epi_study_id[!pd2$epi_study_id %in% c9dat$Patient_ID]
+c9dat$Patient_ID[!c9dat$Patient_ID %in% pd2$epi_study_id]
+
+c9dat.pd <- c9dat[match(pd2$epi_study_id, c9dat$Patient_ID),]
+
+pd2$c9_tr <- c9dat.pd$RPPCR_result
+pd2$c9_old <- pd2$c9
+pd2$c9 <- ifelse(is.na(pd2$c9), 
+          ifelse(is.na(pd2$c9_tr) | pd2$c9_tr=='FAIL', NA, 
+            ifelse(pd2$c9_tr=='WT', "Negative", "Positive")),
+          pd2$c9)
+
+
+table(pd2$c9, pd2$c9_tr, exclude=NULL)
+
+pd2$c9_tab <- ifelse(is.na(pd2$c9), "missing", pd2$c9)
+
+pd2.full <- pd2
+```
+
+```{r}
+
+pd1 <- read.xlsx("K:/My Drive/ALS/Genetics/Genetic_Data_Cleaning/20200611_Illumina OmniExpress_nonrepeating_NO_MRN.xlsx")
+
+miss.pd1 <- pd1[is.na(pd1$fam_hx_als) | is.na(pd1$sex) | is.na(pd1$c9) | is.na(pd1$last_contact_date_age_at),]
+miss.pd2 <- pd2[is.na(pd2$fam_hx_als1) | is.na(pd2$sex) | is.na(pd2$c9) | is.na(pd2$last_contact_date_age_at),]
+
+miss.pd1 <- miss.pd1[,c("FELD_ID","epi_study_id","fam_hx_als","sex","c9","last_contact_date_age_at"),]
+miss.pd2 <- miss.pd2[,c("epi_study_id","fam_hx_als1","sex","c9","last_contact_date_age_at"),]
+
+write.xlsx(list(miss.pd1, miss.pd2), file="K:/My Drive/ALS/Genetics/missing_info_als.xlsx")
+```
+
+
+#Filtering
+```{r}
+nrow(pd2) #488
+
+# non-eligible subjects
+pd2 <- pd2[!(pd2$fam_hx_als == "Yes" & pd2$subject_type == "control"),]
+nrow(pd2) #483
+
+pd2 <- pd2[is.na(pd2$diagnosis) | !pd2$diagnosis %in% c('PLS','Other'),]
+nrow(pd2) #466
+
+# filter missing covariates
+pd2 <- pd2[pd2$fam_hx_als != "Unknown",]
+nrow(pd2) #455
+
+pd2 <- pd2[!is.na(pd2$sex) & !is.na(pd2$fam_hx_als) & !is.na(pd2$PC1) & !is.na(pd2$last_contact_date_age_at),]
+pd2 <- pd2[!is.na(pd2$c9),]
+nrow(pd2) #442
+```
+
+# Split euro ancest
+```{r}
+pd2.euro <- pd2[!is.na(pd2$euroPC1),]
+```
 
 
 
+# C9 SNPS with C9 status
+```{r}
+PGS_SNPS <- read.table("K:/My Drive/ALS/Genetics/Genetic_Data_Cleaning/Goutman_348_New_Sample/ALS-Genotype-QC/PGS/PGS_SNPS.ped")
+PGS_name <- read.table("K:/My Drive/ALS/Genetics/Genetic_Data_Cleaning/Goutman_348_New_Sample/ALS-Genotype-QC/PGS/PGS_SNPS.map")
+
+
+
+table(pd2$epi_study_id %in% PGS_SNPS$V2)
+
+PGS_SNPS <- PGS_SNPS[match(pd2$epi_study_id, PGS_SNPS$V2),]
+PGS_SNPS_A1 <- PGS_SNPS[,c(seq(7,567,2))]
+PGS_SNPS_A2 <- PGS_SNPS[,c(seq(8,568,2))]
+
+PGS_SNPS_G <- as.matrix(PGS_SNPS_A1)
+PGS_SNPS_G[] <- paste(as.matrix(PGS_SNPS_A1), as.matrix(PGS_SNPS_A2), sep="")
+PGS_SNPS_G[1:5,1:5]
+
+colnames(PGS_SNPS_G) <- PGS_name$V2
+
+
+PGS_SNPS_NOC9 <- read.csv("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/snps_used.csv")
+PGS_name$V2[!PGS_name$V2 %in% PGS_SNPS_NOC9$SNP]
+
+table(pd2$c9, PGS_SNPS_G[,'9:27467763'])
+table(pd2$c9, PGS_SNPS_G[,'9:27543382'])
+table(pd2$c9, PGS_SNPS_G[,'9:27584899'])
+table(pd2$c9, PGS_SNPS_G[,'9:27585697'])
+table(pd2$c9, PGS_SNPS_G[,'9:27587788'])
+
+fisher.test(table(pd2$c9, PGS_SNPS_G[,'9:27467763']))
+fisher.test(table(pd2$c9, PGS_SNPS_G[,'9:27543382']))
+fisher.test(table(pd2$c9, PGS_SNPS_G[,'9:27584899']))
+fisher.test(table(pd2$c9, PGS_SNPS_G[,'9:27585697']))
+fisher.test(table(pd2$c9, PGS_SNPS_G[,'9:27587788']))
 
 ```
 
-```{r table1}
-library(compareGroups)
+# Inclusion and exclusion table
 
-restab2 <- compareGroups(subject_type ~ pgs_best + pgs_all + sex +
-                          onset_segment + symptom_onset_date_age_at + 
-                          raceth,
-                        data=pd2)
+```{r, eval=F}
+library(gtsummary)
 
-restab1 <- compareGroups(subject_type ~ pgs_best + pgs_all + sex +
-                          segment + symptom_onset_date_age_at + 
-                          raceth,
-                        data=pd1)
+pd2$sample <- "Analytic"
+pd2.full$sample <- "Full"
+pd2.full$sample2 <- ifelse(pd2.full$epi_study_id %in% pd2$epi_study_id, "Analytic", "Excluded")
+
+#restrict to eligible ones
+backup <- pd2.full
+pd2.full <- pd2.full[!(pd2.full$fam_hx_als == "Yes" & pd2.full$subject_type == "control"),]
+pd2.full <- pd2.full[is.na(pd2.full$diagnosis) | !pd2.full$diagnosis %in% c('PLS','Other'),]
+
+#formatting to make table work better
+pd2.full$fam_hx_als <- ifelse(pd2.full$fam_hx_als=="Unknown", NA, pd2.full$fam_hx_als)
+
+pd2.full$onset_segment2 <- ifelse(is.na(pd2.full$onset_segment), "N/A", pd2.full$onset_segment)
+pd2.full$onset_segment2 <- factor(pd2.full$onset_segment2, 
+                                 levels=c("Bulbar", "Cervical","Lumbar","Respiratory","Thoracic","Cannot be determined", "N/A"))
+
+pd2$onset_segment2 <- ifelse(is.na(pd2$onset_segment), "N/A", pd2$onset_segment)
+pd2$onset_segment2 <- factor(pd2$onset_segment2, 
+                                 levels=c("Bulbar", "Cervical","Lumbar","Respiratory","Thoracic","Cannot be determined", "N/A"))
+
+pd.inex <- rbind(pd2.full[,c("sample","subject_type","als_pgs_noc9","pgs_best","fam_hx_als","sex","onset_segment","c9","raceth","last_contact_date_age_at")],
+                 pd2[,c("sample","subject_type","als_pgs_noc9","pgs_best","fam_hx_als","sex","onset_segment","c9","raceth","last_contact_date_age_at")])
 
 
-tab1A <- createTable(restab2)
-tab1B <- createTable(restab1)
+include_exclude <- tbl_summary(data=pd2.full[,c("sample2", "subject_type", "als_pgs_noc9", "pgs_best", "c9", "fam_hx_als", "onset_segment", "last_contact_date_age_at", "sex", "raceth")],
+                      by=sample2,
+                      label = list(subject_type ~ "ALS Case/Control Status",
+                                   als_pgs_noc9 ~ "ALS PGS with C9 Region Removed",
+                                   pgs_best ~ "ALS PGS with C9 Region Included",
+                                   fam_hx_als ~ "Family History of ALS",
+                                   sex ~ "Sex",
+                                   onset_segment ~ "Onset Segment",
+                                   last_contact_date_age_at ~ "Age",
+                                   c9 ~ "C9 Repeat Status",
+                                   raceth ~ "Self Report Race/Ethnicity")) %>%
+          add_p()
 
-export2word(tab1A, file=file.path(path,'Tables/table1.docx'))
+include_exclude %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path=file.path(output,"Tables/Inclusion_Exclusion_table.docx"))
 
-tab1A
-tab1B
+```
+
+
+
+    
+# Density plots of ALS PGS scores
+```{r}
+ggplot(pd2, aes(x=als_pgs_noc9, fill=subject_type)) +
+  geom_density(alpha=0.3) + theme_classic() +
+  guides(fill=guide_legend(title="")) +
+  xlab("Polygenic Score") + ylab("")
+
+
+ggplot(pd2, aes(x=PC1, y=PC2, col=raceth)) +
+  geom_point() + theme_classic() + 
+  geom_vline(xintercept = 0.02) + geom_hline(yintercept = 0.08) +
+  guides(fill=guide_legend(title=""))
+
+
+density_plot_ALS_PGS <- ggplot(pd2, aes(x=als_pgs_noc9, fill=subject_type)) +
+  geom_density(alpha=0.3) + theme_classic() +
+  guides(fill=guide_legend(title="")) +
+  xlab("Polygenic Score") + ylab("") +
+  scale_fill_discrete(labels=c("Control", "ALS Case")) +
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=14))
+
+density_plot_ALS_PGS_euro <- ggplot(pd2.euro, aes(x=pgs_best, fill=subject_type)) +
+  geom_density(alpha=0.3) + theme_classic() +
+  guides(fill=guide_legend(title="")) +
+  xlab("Polygenic Score") + ylab("") +
+  scale_fill_discrete(labels=c("Control", "ALS Case")) +
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=14))
+
+ggsave(density_plot_ALS_PGS, file=file.path(output, "Figures/Density Plot PGS.svg"))
+ggsave(density_plot_ALS_PGS, file=file.path(output, "Figures/Density Plot PGS (euro only).svg"))
+
+```
+
+
+# Demographics and covar tables
+```{r table1, eval=F}
+
+euro.tab1 <- tbl_summary(data=pd2.euro %>% select(subject_type, als_pgs_noc9, pgs_best, c9, fam_hx_als,
+                                                  onset_segment, last_contact_date_age_at, sex,  
+                                                  euroPC1, euroPC2, euroPC3, euroPC4, euroPC5),
+                      by=subject_type,
+                      label = list(subject_type ~ "ALS Case/Control Status",
+                                   als_pgs_noc9 ~ "ALS PGS with C9 Region Removed",
+                                   pgs_best ~ "ALS PGS with C9 Region Included",
+                                   fam_hx_als ~ "Family History of ALS",
+                                   sex ~ "Sex",
+                                   onset_segment ~ "Onset Segment",
+                                   last_contact_date_age_at ~ "Age",
+                                   c9 ~ "C9 Repeat Status")) %>%
+             add_p()
+
+euro.tab1
+
+
+all.tab1 <- tbl_summary(data=pd2 %>% select(subject_type, als_pgs_noc9, pgs_best, c9, fam_hx_als,
+                                                  onset_segment, last_contact_date_age_at, sex, 
+                                                  raceth, PC1, PC2, PC3, PC4, PC5),
+                      by=subject_type,
+                      label = list(subject_type ~ "ALS Case/Control Status",
+                                   als_pgs_noc9 ~ "ALS PGS with C9 Region Removed",
+                                   pgs_best ~ "ALS PGS with C9 Region Included",
+                                   fam_hx_als ~ "Family History of ALS",
+                                   sex ~ "Sex",
+                                   onset_segment ~ "Onset Segment",
+                                   last_contact_date_age_at ~ "Age",
+                                   c9 ~ "C9 Repeat Status",
+                                   raceth ~ "Self Report Race/Ethnicity")) %>%
+            add_p()
+
+all.tab1
+
+
+euro.tab1 %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path=file.path(output,"Tables/Table 1 Euro.docx"))
+
+all.tab1 %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path=file.path(output,"Tables/Table 1 Full.docx"))
 ```
 
 
 
 # ALS Models
+
+```{r}
+#some formatting for estimate readability
+
+pd2$last_contact_date_age_at <- pd2$last_contact_date_age_at/10
+pd2.euro$last_contact_date_age_at <- pd2.euro$last_contact_date_age_at/10
+
+pd2$PC1 <- (pd2$PC1 - mean(pd2$PC1))/ sd(pd2$PC1)
+pd2$PC2 <- (pd2$PC2 - mean(pd2$PC2))/ sd(pd2$PC2)
+pd2$PC3 <- (pd2$PC3 - mean(pd2$PC3))/ sd(pd2$PC3)
+pd2$PC4 <- (pd2$PC4 - mean(pd2$PC4))/ sd(pd2$PC4)
+pd2$PC5 <- (pd2$PC5 - mean(pd2$PC5))/ sd(pd2$PC5)
+
+pd2.euro$euroPC1 <- (pd2.euro$euroPC1 - mean(pd2.euro$euroPC1))/ sd(pd2.euro$euroPC1)
+pd2.euro$euroPC2 <- (pd2.euro$euroPC2 - mean(pd2.euro$euroPC2))/ sd(pd2.euro$euroPC2)
+pd2.euro$euroPC3 <- (pd2.euro$euroPC3 - mean(pd2.euro$euroPC3))/ sd(pd2.euro$euroPC3)
+pd2.euro$euroPC4 <- (pd2.euro$euroPC4 - mean(pd2.euro$euroPC4))/ sd(pd2.euro$euroPC4)
+pd2.euro$euroPC5 <- (pd2.euro$euroPC5 - mean(pd2.euro$euroPC5))/ sd(pd2.euro$euroPC5)
+```
+
 ```{r pgs_mods}
-pd2 <- pd2[pd2$fam_hx_als != "Unknown",]
+# all
+all_132snp <- logistf(subject_type ~ pgs_sp + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + PC1 + PC2 + PC3 + PC4 + PC5, 
+            family = binomial("logit"), data=pd2) %>% summary()
 
-summary(glm(pd2$subject_type ~ pd2$pgs_all + pd2$sex + pd2$fam_hx_als + pd2$PC1 + pd2$PC2 + pd2$PC3 + pd2$PC4 + pd2$PC5, family = binomial("logit")))
-summary(glm(pd2$subject_type ~ pd2$pgs_best + pd2$sex + pd2$fam_hx_als + pd2$PC1 + pd2$PC2 + pd2$PC3  + pd2$PC4 + pd2$PC5, family = binomial("logit")))
 
-ggplot(data=pd2, aes(x=subject_type, y=all)) +
-  geom_boxplot() + theme_classic()
+all_noc9 <- logistf(subject_type ~ als_pgs_noc9 + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + PC1 + PC2 + PC3 + PC4 + PC5, 
+            family = binomial("logit"), data=pd2) %>% summary()
 
-ggplot(data=pd2, aes(x=subject_type, y=best)) +
-  geom_boxplot() + theme_classic()
+# euro only
+euro_132snp <- logistf(subject_type ~ pgs_sp + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + euroPC1 + euroPC2 + euroPC3 + euroPC4 + euroPC5, 
+            family = binomial("logit"), data=pd2.euro) %>% summary()
+
+
+euro_noc9 <- logistf(subject_type ~ als_pgs_noc9 + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + euroPC1 + euroPC2 + euroPC3 + euroPC4 + euroPC5, 
+            family = binomial("logit"), data=pd2.euro) %>% summary()
+
+# exclude family history and c9 pos
+all_nohis <- logistf(subject_type ~ als_pgs_noc9 + sex + last_contact_date_age_at + 
+              PC1 + PC2 + PC3 + PC4 + PC5, 
+            family = binomial("logit"), data=pd2[pd2$fam_hx_als!="Yes" & pd2$c9!="Positive",]) %>% summary()
+
+euro_nohis <- logistf(subject_type ~ als_pgs_noc9 + sex + last_contact_date_age_at + 
+              euroPC1 + euroPC2 + euroPC3 + euroPC4 + euroPC5, 
+            family = binomial("logit"), data=pd2.euro[pd2.euro$fam_hx_als!="Yes" & pd2.euro$c9!="Positive",]) %>% summary()
+
+#pgs with c9 region
+euro_c9 <- logistf(subject_type ~ pgs_best + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + euroPC1 + euroPC2 + euroPC3 + euroPC4 + euroPC5, 
+            family = binomial("logit"), data=pd2.euro) %>% summary()
+
+all_c9 <- logistf(subject_type ~ pgs_best + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + PC1 + PC2 + PC3 + PC4 + PC5, 
+            family = binomial("logit"), data=pd2) %>% summary()
+
+#pgs p 1.0
+euro_p1 <- logistf(subject_type ~ pgs_all + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + euroPC1 + euroPC2 + euroPC3 + euroPC4 + euroPC5, 
+            family = binomial("logit"), data=pd2.euro) %>% summary()
+
+all_p1 <- logistf(subject_type ~ pgs_all + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + PC1 + PC2 + PC3 + PC4 + PC5, 
+            family = binomial("logit"), data=pd2) %>% summary()
+
+# pgs c9 interact
+summary(logistf(subject_type ~ als_pgs_noc9 + sex + last_contact_date_age_at + 
+              fam_hx_als + c9 + PC1 + PC2 + PC3 + PC4 + PC5 + als_pgs_noc9*c9, 
+            family = binomial("logit"), data=pd2))
 ```
 
-# Symptom Onset Age models
+#results tables
 ```{r}
-#case only
-pd2.case <- pd2[pd2$subject_type=="case",]
-pd2.case <- pd2.case[!pd2.case$onset_segment %in% c("Cannot be determined", "Respiratory", "Thoracic"),]
+# exp(all_noc9$coefficients)
+# exp(all_noc9$ci.lower)
+# exp(all_noc9$ci.upper)
 
-summary(glm(symptom_onset_date_age_at ~ pgs_best + sex + onset_segment + fam_hx_als + PC1 + PC2 + PC3 + PC4 + PC5, data=pd2.case))
+CI_get <- function(res, var){
+  paste0(
+    round(exp(res$coefficients)[var],2), " (",
+    round(exp(res$ci.lower)[var],2), ", ",
+    round(exp(res$ci.upper)[var],2), ")"
+  )
+}
 
-ggplot(data=pd2.case, aes(x=pgs_best, y=symptom_onset_date_age_at)) +
-  geom_point() +
-  geom_smooth(method='lm') + theme_classic()
+extract_results <- function(res){
+  vars = list(2, "c9Positive", "fam_hx_alsYes", "last_contact_date_age_at", "sexM")
+  sapply(vars, FUN=function(X){CI_get(res,X)})
+}
 
-plot(pd2.case$pgs.best, pd2.case$symptom_onset_date_age_at)
+results_template <- matrix("-", nrow=5, ncol=4)
+colnames(results_template) <- c("Main", "No Fam His/Expansion", "All SNP PGS", "C9 Region Included PGS")
+rownames(results_template) <- c("PGS", "C9", "FamHx", "Age", "Sex")
 
-summary(glm(symptom_onset_date_age_at ~ pgs_all + sex + onset_segment + fam_hx_als + PC1 + PC2 + PC3 + PC4 + PC5, data=pd2.case))
-
-ggplot(data=pd2.case, aes(x=pgs_all, y=symptom_onset_date_age_at)) +
-  geom_point() +
-  geom_smooth(method='lm') + theme_classic()
-
-#only euro ancestry
-
-pd2$raceth <- 
-      ifelse(pd2$race_not_harmonized %in% c("caucasian", "white"), "WHITE OR CAUCASIAN",
-      ifelse(pd2$race_not_harmonized %in% c("black/african american"), "BLACK OR AFRICAN AMERICAN",
-      ifelse(pd2$race_not_harmonized=="other asian", "ASIAN", pd2$race_not_harmonized)))
-pd2$raceth <- 
-      ifelse(pd2$ethnicity=="Hispanic or Latino", "HISPANIC OR LATINO", pd2$raceth)
-
-ggplot(data=pd2, aes(x=PC1, y=PC2, col=raceth)) +
-  geom_point()
+results_full_sample <- results_template
+results_full_sample[, "Main"] <- extract_results(all_noc9)
+results_full_sample[, "No Fam His/Expansion"] <- extract_results(all_nohis)
+results_full_sample[, "All SNP PGS"] <- extract_results(all_p1)
+results_full_sample[, "C9 Region Included PGS"] <- extract_results(all_c9)
 
 
-pd2.case.euro <- pd2.case[pd2.case$PC1 < .01 & pd2.case$PC2 < 0.75,]
+results_euro_sample <- results_template
+results_euro_sample[, "Main"] <- extract_results(euro_noc9)
+results_euro_sample[, "No Fam His/Expansion"] <- extract_results(euro_nohis)
+results_euro_sample[, "All SNP PGS"] <- extract_results(euro_p1)
+results_euro_sample[, "C9 Region Included PGS"] <- extract_results(euro_c9)
 
-summary(glm(symptom_onset_date_age_at ~ pgs.best + sex + onset_segment + PC1 + PC2 + PC3 + PC4 + PC5, data=pd2.case.euro))
+results_full_sample
+results_euro_sample
 
-ggplot(data=pd2.case.euro, aes(x=pgs.best, y=symptom_onset_date_age_at)) +
-  geom_point() +
-  geom_smooth(method='lm')
+write.table(results_full_sample, file=file.path(output,"Tables/results_table_all.txt"), quote=F, sep='\t')
+write.table(results_euro_sample, file=file.path(output,"Tables/results_table_euro.txt"), quote=F, sep='\t')
+```
 
-summary(glm(symptom_onset_date_age_at ~ pgs.all + sex + onset_segment + PC1 + PC2 + PC3 + PC4 + PC5, data=pd2.case.euro))
 
-ggplot(data=pd2.case.euro, aes(x=pgs.all, y=symptom_onset_date_age_at)) +
-  geom_point() +
-  geom_smooth(method='lm')
+### Calculate proportion attrubtable fraction
+```{r PAF try with get datasets}
+library(Hmisc)
+library(AF)
+library(pROC)
+library(wesanderson)
 
+pd2.euro$ALS <- ifelse(pd2.euro$subject_type=='case', 1, 0)
+pd2$ALS <- ifelse(pd2$subject_type=='case', 1, 0)
+
+
+pd2.euro$ALS_Q <- cut2(pd2.euro$pgs_best, g=5)
+table(pd2.euro$ALS_Q)
+levels(pd2.euro$ALS_Q)[1]
+pd2.euro$ALS_PGS_high<-ifelse(pd2.euro$ALS_Q==levels(pd2.euro$ALS_Q)[5], 1, 0)
+pd2.euro$ALS_PGS_high<-ifelse(pd2.euro$ALS_Q==levels(pd2.euro$ALS_Q)[1], 0, pd2.euro$ALS_PGS_high)
+table(pd2.euro$ALS_PGS_high)
+pd.paf<-pd2.euro[!is.na(pd2.euro$ALS_PGS_high),]
+pd.paf$c9 <- ifelse(pd.paf$c9=="Positive", 1, 0)
+
+crude_model =  glm(formula = ALS ~ c9, data = pd.paf, family='binomial')
+full_model = glm(formula = ALS ~ ALS_PGS_high + c9 + sex + fam_hx_als + PC1 + PC2 + PC3 + PC4 + PC5, data=pd.paf, family = 'binomial')  
+
+
+# crude_PGS = AFglm(object = crude_model, data = pd.paf, exposure = "ALS_PGS_high", case.control=T)
+# full_PGS = AFglm(object = full_model, data = pd.paf, exposure = "ALS_PGS_high", case.control=T)
+
+crude_PGS = AFglm(object = crude_model, data = pd.paf, exposure = "c9", case.control=T)
+full_PGS = AFglm(object = full_model, data = pd.paf, exposure = "c9", case.control=T)
+
+extract_AF = function(regression_object, mark) {
+  
+  summary_reg = summary(regression_object)
+  AF_table = array(NA, dim=c(1,6))
+  
+  AF_est = regression_object$AF.est
+  N = regression_object$n
+  low_limit = summary_reg$confidence.interval[1]
+  upper_limit = summary_reg$confidence.interval[2]
+  p = summary_reg$AF[4]
+  
+  AF_table[1,1] = mark
+  AF_table[1,2] = N
+  AF_table[1,3] = sprintf('%.4f', AF_est)
+  AF_table[1,4] = sprintf('%.4f', low_limit)
+  AF_table[1,5] = sprintf('%.4f', upper_limit)
+  AF_table[1,6] = sprintf('%.3f', p)
+  
+  AF_table_final = as.data.frame(AF_table)
+  colnames(AF_table_final) = c('mark', 'N', 'AF', 'lower', 'upper', 'p-value')
+  
+  return(AF_table_final)
+}
+
+PAF_tab = rbind(extract_AF(crude_PGS, 'crude_PGS'), extract_AF(full_PGS, 'full_PGS'))
+# write.csv(PAF_tab, file=paste0(path, "/Tables/PGS_PAF.csv"))
+PAF_tab
+```
+
+
+# ROC curve analysis
+```{r ROC datasets, fig.dim = c(16, 8)}
+library(lmtest)
+library(caret)
+set.seed(1453)
+
+### all ancestry
+adjust_variable = 'sex + last_contact_date_age_at + PC1 + PC2 + PC3 + PC4 + PC5'
+
+crude = logistf(formula = as.formula(paste('ALS ~ ', adjust_variable)), 
+            family = binomial("logit"), data=pd2)
+prob_crude = predict(crude, type = c("response"))
+
+famhis = logistf(formula = as.formula(paste('ALS ~ fam_hx_als + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2)
+prob_famhis = predict(famhis, type = c("response"))
+
+c9 = logistf(formula = as.formula(paste('ALS ~ fam_hx_als + c9 + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2)
+prob_c9 = predict(c9, type = c("response"))
+
+PGS = logistf(formula = as.formula(paste('ALS ~ als_pgs_noc9 + fam_hx_als + c9 + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2)
+prob_PGS = predict(PGS,type = c("response"))
+
+pd2$prob_crude <- prob_crude
+pd2$prob_famhis <- prob_famhis
+pd2$prob_c9 <- prob_c9
+pd2$prob_PGS <- prob_PGS
+
+roc_crude = roc(ALS ~ prob_crude, data = pd2)
+roc_famhis = roc(ALS ~ prob_famhis, data = pd2)
+roc_c9 = roc(ALS ~ prob_c9, data = pd2)
+roc_PGS = roc(ALS ~ prob_PGS, data = pd2)
+
+labs =   c(paste0("Base (AUC:", round(roc_crude[['auc']][[1]], 3), ")"),
+           paste0("Add fam his (AUC:", round(roc_famhis[['auc']][[1]], 3), ")"),
+           paste0("Add C9 (AUC:", round(roc_c9[['auc']][[1]], 3), ")"),
+           paste0("Add PGS (AUC:", round(roc_PGS[['auc']][[1]], 3), ")"))
+
+roc_plot<- ggroc(list(crude = roc_crude, famhis = roc_famhis, c9 = roc_c9, PGS_only = roc_PGS), 
+                 aes = c("colour"), size=1.2,legacy.axes = TRUE) +
+  theme_classic(base_size = 20) +
+  geom_abline(intercept=0, slope=1, linetype="dashed") +
+  labs(title="", x = "1 - Specificity", y = "Sensitivity", colour = "Model") +
+                   scale_color_manual(values= c("dodgerblue","goldenrod","firebrick3","purple"), labels=labs)
+print(roc_plot)
+ggsave(roc_plot, file=file.path(output,"Figures/ROC_all.svg"), width=9, height=5)
+ggsave(roc_plot, file=file.path(output,"Figures/ROC_all.pdf"), width=9, height=5)
+
+logistftest(famhis, crude)
+logistftest(c9, famhis)
+logistftest(PGS, c9)
+
+roc.test(roc_crude, roc_famhis)
+roc.test(roc_famhis, roc_c9)
+roc.test(roc_PGS, roc_c9)
+
+
+# N folds
+set.seed(1453)
+G=5
+folds <- createFolds(y=1:nrow(pd2),k=G,list=F)
+datp=NULL
+LRtests <- matrix(NA, nrow=3, ncol=5)
+colnames(LRtests) <- c(paste0("fold",1:5))
+rownames(LRtests) <- c("add_famhis", "add_c9", "add_pgs")
+
+#weird tactics to make sure each fold has some c9 and famhis
+c9fold <- createFolds(y=1:table(pd2$c9)["Positive"], k=G, list=F)
+folds[which(pd2$c9=="Positive")] <- c9fold
+
+hisfold <- createFolds(y=1:table(pd2$fam_hx_als)["Yes"], k=G, list=F)
+folds[which(pd2$fam_hx_als=="Yes")] <- hisfold
+
+# loop over folds
+for(g in 1:G){
+    
+  # split dds into training and test data
+  testdata <- pd2[folds == g,]
+  traindata <- pd2[folds != g,]  
+    
+  # fit logistic regression
+  crude = logistf(formula = as.formula(paste('ALS ~ ', adjust_variable)), 
+            family = binomial("logit"), data=traindata)
+  
+  famhis = logistf(formula = as.formula(paste('ALS ~ fam_hx_als + ', adjust_variable)), 
+              family = binomial("logit"), data=traindata, control = logistf.control(maxit=10000))
+  
+  c9 = logistf(formula = as.formula(paste('ALS ~ fam_hx_als + c9 + ', adjust_variable)), 
+              family = binomial("logit"), data=traindata, control = logistf.control(maxit=10000))
+  
+  PGS = logistf(formula = as.formula(paste('ALS ~ als_pgs_noc9 + fam_hx_als + c9 + ', adjust_variable)), 
+              family = binomial("logit"), data=traindata, control = logistf.control(maxit=10000))
+
+  # get predicted prob for each subject
+  testdata$prob_crude <- predict(crude, newdata = testdata, type = c("response"))
+  testdata$prob_famhis <- predict(famhis, newdata = testdata, type = c("response"))
+  testdata$prob_c9 <- predict(c9, newdata = testdata, type = c("response"))
+  testdata$prob_PGS <- predict(PGS, newdata = testdata, type = c("response"))
+  
+  datp[[g]]=testdata
+  
+  LR_fam=logistftest(famhis, crude)
+  LR_c9=logistftest(c9, famhis)
+  LR_PGS=logistftest(PGS, c9)
+  
+  LRtests["add_famhis", g] = LR_fam$prob
+  LRtests["add_c9", g] = LR_c9$prob
+  LRtests["add_pgs", g] = LR_PGS$prob
+} 
+  
+#combine results from 5 groups 
+pred=Reduce("rbind",datp)
+
+# get cross-validated AUC
+roc_PGS <- roc(pred$ALS ~ pred$prob_PGS)
+roc_c9 <- roc(pred$ALS ~ pred$prob_c9)
+roc_famhis <- roc(pred$ALS ~ pred$prob_famhis)
+roc_crude <- roc(pred$ALS ~ pred$prob_crude)
+
+roc_PGS$auc
+roc_c9$auc
+roc_famhis$auc
+roc_crude$auc
+
+roc.test(roc_crude, roc_famhis)
+roc.test(roc_famhis, roc_c9)
+roc.test(roc_c9, roc_PGS)
+
+labs =   c(paste0("Base (AUC:", round(roc_crude[['auc']][[1]], 3), ")"),
+           paste0("Add fam his (AUC:", round(roc_famhis[['auc']][[1]], 3), ")"),
+           paste0("Add C9 (AUC:", round(roc_c9[['auc']][[1]], 3), ")"),
+           paste0("Add PGS (AUC:", round(roc_PGS[['auc']][[1]], 3), ")"))
+
+roc_plot<- ggroc(list(crude = roc_crude, famhis = roc_famhis, c9 = roc_c9, PGS_only = roc_PGS), 
+                 aes = c("colour"), size=1.2,legacy.axes = TRUE) +
+  theme_classic(base_size = 20) +
+  geom_abline(intercept=0, slope=1, linetype="dashed") +
+  labs(title="", x = "1 - Specificity", y = "Sensitivity", colour = "Model") +
+                   scale_color_manual(values= c("dodgerblue","goldenrod","firebrick3","purple"), labels=labs)
+print(roc_plot)
+ggsave(roc_plot, file=file.path(output,"Figures/ROC_cv_pred.svg"), width=9, height=5)
+
+
+### euro only
+
+adjust_variable = 'sex + last_contact_date_age_at + euroPC1 + euroPC2 + euroPC3 + euroPC4 + euroPC5'
+
+crude = logistf(formula = as.formula(paste('ALS ~ ', adjust_variable)), 
+            family = binomial("logit"), data=pd2.euro)
+prob_crude = predict(crude, type = c("response"))
+
+famhis = logistf(formula = as.formula(paste('ALS ~ fam_hx_als + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2.euro)
+prob_famhis = predict(famhis, type = c("response"))
+
+c9 = logistf(formula = as.formula(paste('ALS ~ fam_hx_als + c9 + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2.euro)
+prob_c9 = predict(c9, type = c("response"))
+
+PGS = logistf(formula = as.formula(paste('ALS ~ pgs_sp + fam_hx_als + c9 + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2.euro)
+prob_PGS = predict(PGS,type = c("response"))
+
+pd2.euro$prob_crude <- prob_crude
+pd2.euro$prob_famhis <- prob_famhis
+pd2.euro$prob_c9 <- prob_c9
+pd2.euro$prob_PGS <- prob_PGS
+
+roc_crude = roc(ALS ~ prob_crude, data = pd2.euro)
+roc_famhis = roc(ALS ~ prob_famhis, data = pd2.euro)
+roc_c9 = roc(ALS ~ prob_c9, data = pd2.euro)
+roc_PGS = roc(ALS ~ prob_PGS, data = pd2.euro)
+
+labs =   c(paste0("Base (AUC:", round(roc_crude[['auc']][[1]], 3), ")"),
+           paste0("Add fam his (AUC:", round(roc_famhis[['auc']][[1]], 3), ")"),
+           paste0("Add C9 (AUC:", round(roc_c9[['auc']][[1]], 3), ")"),
+           paste0("Add PGS (AUC:", round(roc_PGS[['auc']][[1]], 3), ")"))
+
+roc_plot<- ggroc(list(crude = roc_crude, famhis = roc_famhis, c9 = roc_c9, PGS_only = roc_PGS), 
+                 aes = c("colour"), size=1.2,legacy.axes = TRUE) +
+  theme_classic(base_size = 20) +
+  geom_abline(intercept=0, slope=1, linetype="dashed") +
+  labs(title="", x = "1 - Specificity", y = "Sensitivity", colour = "Model") +
+                   scale_color_manual(values= c("dodgerblue","goldenrod","firebrick3","purple"), labels=labs)
+print(roc_plot)
+ggsave(roc_plot, file=file.path(output,"Figures/ROC_euro.svg"), width=9, height=5)
+
+
+logistftest(famhis, crude)
+logistftest(c9, famhis)
+logistftest(PGS, c9)
+
+roc.test(roc_crude, roc_famhis)
+roc.test(roc_famhis, roc_c9)
+roc.test(roc_c9, roc_PGS)
+
+
+### one at a time
+adjust_variable = 'sex + last_contact_date_age_at + PC1 + PC2 + PC3 + PC4 + PC5'
+
+#crude = glm(formula = as.formula(paste('ALS ~ ', adjust_variable)), data = pd2.c9, family = 'binomial')
+crude = logistf(formula = as.formula(paste('ALS ~ ', adjust_variable)), 
+            family = binomial("logit"), data=pd2)
+prob_crude = predict(crude, type = c("response"))
+
+#famhis = glm(formula = as.formula(paste('ALS ~ fam_hx_als + ', adjust_variable)), data = pd2.c9, family = 'binomial')
+famhis = logistf(formula = as.formula(paste('ALS ~ fam_hx_als + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2)
+prob_famhis = predict(famhis, type = c("response"))
+
+#c9 = glm(formula = as.formula(paste('ALS ~ fam_hx_als + c9 + ', adjust_variable)), data = pd2.c9, family = 'binomial')
+c9 = logistf(formula = as.formula(paste('ALS ~ c9 + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2)
+prob_c9 = predict(c9, type = c("response"))
+
+#PGS = glm(formula = as.formula(paste('ALS ~ als_pgs_noc9 + ', adjust_variable)), data = pd2.c9, family = 'binomial')
+PGS = logistf(formula = as.formula(paste('ALS ~ pgs_sp + ', adjust_variable)), 
+            family = binomial("logit"), data=pd2)
+prob_PGS = predict(PGS,type = c("response"))
+
+pd2$prob_crude <- prob_crude
+pd2$prob_famhis <- prob_famhis
+pd2$prob_c9 <- prob_c9
+pd2$prob_PGS <- prob_PGS
+
+roc_crude = roc(ALS ~ prob_crude, data = pd2)
+roc_famhis = roc(ALS ~ prob_famhis, data = pd2)
+roc_c9 = roc(ALS ~ prob_c9, data = pd2)
+roc_PGS = roc(ALS ~ prob_PGS, data = pd2)
+
+labs =   c(paste0("Base (AUC:", round(roc_crude[['auc']][[1]], 3), ")"),
+           paste0("Add fam his (AUC:", round(roc_famhis[['auc']][[1]], 3), ")"),
+           paste0("Add C9 (AUC:", round(roc_c9[['auc']][[1]], 3), ")"),
+           paste0("Add PGS (AUC:", round(roc_PGS[['auc']][[1]], 3), ")"))
+
+roc_plot<- ggroc(list(crude = roc_crude, famhis = roc_famhis, c9 = roc_c9, PGS_only = roc_PGS), 
+                 aes = c("colour"), size=1.2,legacy.axes = TRUE) +
+  theme_classic(base_size = 20) +
+  geom_abline(intercept=0, slope=1, linetype="dashed") +
+  labs(title="", x = "1 - Specificity", y = "Sensitivity", colour = "Model") +
+                   scale_color_manual(values= c("dodgerblue","goldenrod","firebrick3","purple"), labels=labs)
+print(roc_plot)
+
+
+logistftest(famhis, crude)
+logistftest(c9, famhis)
+logistftest(PGS, crude)
+
+roc.test(roc_crude, roc_famhis)
+roc.test(roc_crude, roc_c9)
+roc.test(roc_crude, roc_PGS)
 
 
 ```
-# Pathway
-```{r}
-snps <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/PRSice.snp", row.names=NULL)
-gwas <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/als_gwas", header=T)
 
-colnames(snps) <- c("CHR","SNP","BP","P","Base","X")
-table(snps$SNP %in% gwas$SNP)
-#   TRUE
-# 254307
 
-pgs.snps <- snps[snps$P <= 0.00010005,]
-pgs.snps$SNP <- as.character(pgs.snps$SNP)
+# Spanish cohort
+```{r, eval=F}
 
-load("/nfs/turbo/bakulski1/People/johndou/PGC_Pb/genes_als.rda")
+#restrict genotypes to spanish ones?
+sp_snps <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/SpanishCohort.Hg19.maf001.geno015.ALL.bim")
+mi_snps <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/als2.bim")
 
-pgs.genes <- gene_map[gene_map$SNP %in% pgs.snps$SNP,]
+sp_snps$snp <- paste0(sp_snps$V1, ":", sp_snps$V4)
 
-pgs.genes$gene_name <- paste0(" ", pgs.genes$gene_name)
-write.csv(pgs.genes, file="/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/pgs_snps_used.csv")
+table(sp_snps$snp %in% mi_snps$V2)
+  FALSE    TRUE
+1115471 6320246
 
-write.table(trimws(pgs.genes$gene_name), file="/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/ALS/pgs_snps_used_gene.txt", row.names=F, col.names=F, quote=F)
+table(mi_snps$V2 %in% sp_snps$snp)
+  FALSE    TRUE
+1858157 6321345
 
-pgs.genes <- read.csv("F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/Code/Goutman_348/pgs_snps_used.csv")
+like_snps <- intersect(mi_snps$V2, sp_snps$snp)
+
+write.table(like_snps, file="/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/like_snps.txt",
+            col.names=F, row.names=F, quote = F)
+
+
+#restrict gwas results to spanish ones?
+sp_snps <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/SpanishCohort.Hg19.maf001.geno015.ALL.bim")
+als_gwas <- read.table("/nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/als_gwas", header=T)
+
+sp_snps$snp <- paste0(sp_snps$V1, ":", sp_snps$V4)
+
+table(sp_snps$snp %in% als_gwas$SNP)
+  FALSE    TRUE
+ 194967 7240750
+
+als_gwas_sp <- als_gwas[als_gwas$SNP %in% sp_snps$snp, ]
+
+write.table(als_gwas_sp, file="/nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/als_gwas_sp",
+            row.names=F, quote = F, sep='\t')
+
+
+
+
+
+
+gwas_snps_sp <- read.table("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/sp.snp", sep='\t',
+                        header=T)
+gwas_snps_sp2 <- read.table("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/sp_limit_source.snp", sep='\t',
+                        header=T)
+gwas_snps <- read.csv("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/snps_used.csv")
+
+gwas_snp_mini <- read.table("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/snps_mini.txt", header=T)
+
+top <- gwas_snps_sp[gwas_snps_sp$P < 0.00010005,]
+top2 <- gwas_snps_sp2[gwas_snps_sp2$P < 0.00010005,]
+
+dim(top)
+dim(top2)
+
+extra <- top2[!top2$SNP %in% gwas_snp_mini$SNP,]
+
+bim <- read.table("F:/Dropbox (University of Michigan)/Kelly & John Work (ALS Genetics)/Datasets/Spanish Cohort/SpanishCohort.Hg19.maf001.geno015.ALL.bim",
+                  header=F)
+bim$SNP <- paste0(bim$V1,":",bim$V4)
+
+source <- read.table("K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/als_gwas", header=T)
+source[source$SNP %in% extra$SNP,]
+
+source <- source[order(source$CHR, source$BP),]
+source <- source[source$SNP %in% bim$SNP,]
+View(source)
+
+top2[top2$CHR==1 & top2$BP < 112106046+10000 & top2$BP > 112106046-10000, ]
+
+top2[top2$CHR==1 & top2$BP < 204905308+10000 & top2$BP > 204905308-10000, ]
+source[source$CHR==1 & source$BP < 204905308+10000 & source$BP > 204905308-10000, ]
+
+top2[top2$CHR==1 & top2$BP < 223864806+10000 & top2$BP > 223864806-10000, ]
+source[source$CHR==1 & source$BP < 223864806+10000 & source$BP > 223864806-10000, ]
+
+top2[top2$CHR==1 & top2$BP < 224372196+10000 & top2$BP > 224372196-10000, ]
+source[source$CHR==1 & source$BP < 224372196+10000 & source$BP > 224372196-10000, ]
+
+top2[top2$CHR==1 & top2$BP < 239344022+10000 & top2$BP > 239344022-10000, ]
+source[source$CHR==1 & source$BP < 239344022+10000 & source$BP > 239344022-10000, ]
+
+top2[top2$CHR==15 & top2$BP < 33299249+10000 & top2$BP > 33299249-10000, ]
+source[source$CHR==15 & source$BP < 33299249+10000 & source$BP > 33299249-10000, ]
+
+"1:112106046" %in% bim$SNP
+
+
+
+snps215 <- source[source$SNP %in% top2$SNP,]
+write.table(snps215, file="K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/pgs_snps.txt", quote=F, row.names=F)
+
+snps132 <- snps215[snps215$P < 5e-5,]
+write.table(snps132, file="K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/pgs_snps_132.txt", quote=F, row.names=F)
+
+source_c9_area <- source[source$CHR==9 & source$BP > 27150000 & source$BP < 27900000,]
+source_c9_area <- source_c9_area[order(source_c9_area$CHR, source_c9_area$BP), ]
+write.table(source_c9_area, file="K:/My Drive/ALS/Genetics/ALS_PGS_CaseControl/Data/for_locus_zoom.txt", quote=F, row.names=F, sep='\t')
 ```
 
-# C9 haplotype
-```{r}
-haplotype <- paste0("9:",c("27357278", 
-               "27362053", "27375002", "27376505", "27392961",
-               "27399264", "27420232", "27428411", "27433802",
-               "27435104", "27437089", "27440211", "27441960",
-               "27442240", "27443037", "27444173", "27448939",
-               "27458461", "27467874", "27468052", "27472235",
-               "27473959", "27479251", "27480967", "27485418",
-               "27492986", "27519316", "27523984", "27526397",
-               "27533281", "27543876", "27546780", "27547919",
-               "27549733", "27551049", "27562255", "27565785",
-               "27569560", "27576162", "27578731", "27579657",
-               "27589746"))
-riskallele <- c("T","C","A","A","C",
-                "C","G","G","G","A",
-                "C","T","A","G","G",
-                "C","A","T","A","C",
-                "T","T","T","A","A",
-                "C","C","C","A","A",
-                "T","G","T","G","C",
-                "G","C","G","G","A",
-                "G","T")
-write.table(haplotype, file="F:/Drive/ALS/Genetics/Genetic_Data_Cleaning/Code/Goutman_348/ALS-Genotype-QC/C9_Haplotype/c9_snps.txt", quote=F, row.names=F, col.names=F)
-```
-
-```{batch}
-srun --nodes=1 --ntasks-per-node=1 --mem-per-cpu=16g --account=bakulski1 --time=03:00:00 --pty /bin/bash
-
+```{bash, eval=F}
 module load Bioinformatics
 module load plink/1.9
 
-cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/C9_Haplotype
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/
 
-plink --vcf ../08_Impute/Phase/als_phase_chr9_vcf --keep-allele-order --double-id --out chr9
-plink --bfile chr9 --keep c9_snps.txt --recode --out chr9_haplo
+plink --bfile ../als2 --extract like_snps.txt --make-bed --out spanish_cohort_snps
+
+Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/ \
+  --prsice /nfs/turbo/bakulski1/Software/PRSice2/PRSice_linux \
+  --base /nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/als_gwas \
+  --target spanish_cohort_snps \
+  --thread 1 \
+	--A1 A1 \
+	--A2 A2 \
+	--pvalue P \
+	--snp SNP \
+	--chr CHR \
+	--bp BP \
+	--beta \
+  --binary-target T \
+	--pheno ../als_status.txt \
+	--pheno-col subject_type \
+	--all-score \
+  --extract PRSice.valid \
+	--print-snp
+	
+Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/no_c9/ \
+  --prsice /nfs/turbo/bakulski1/Software/PRSice2/PRSice_linux \
+  --base /nfs/turbo/bakulski1/People/johndou/ALS/09_PGS/als_gwas \
+  --target ../als2_noc9 \
+  --thread 1 \
+	--A1 A1 \
+	--A2 A2 \
+	--pvalue P \
+	--snp SNP \
+	--chr CHR \
+	--bp BP \
+	--beta \
+  --binary-target T \
+	--pheno ../als_status.txt \
+	--pheno-col subject_type \
+	--all-score \
+  --extract PRSice.valid \
+	--print-snp
 
 
+cd /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/limit_source/
+
+Rscript /nfs/turbo/bakulski1/Software/PRSice2/PRSice.R --dir /nfs/turbo/bakulski1/People/johndou/ALS_Goutman/09_PGS/SpanishCohortSNP/limit_source/ \
+  --prsice /nfs/turbo/bakulski1/Software/PRSice2/PRSice_linux \
+  --base ../als_gwas_sp \
+  --target ../../als2_noc9 \
+  --thread 1 \
+	--A1 A1 \
+	--A2 A2 \
+	--pvalue P \
+	--snp SNP \
+	--chr CHR \
+	--bp BP \
+	--beta \
+  --binary-target T \
+	--pheno ../../als_status.txt \
+	--pheno-col subject_type \
+	--all-score \
+  --extract ../PRSice.valid \
+	--print-snp
+
+```
+
+```{r}
+#Load data, merge in PGS
+sp.pd <- read.xlsx("F:/Dropbox (University of Michigan)/Kelly & John Work (ALS Genetics)/Datasets/Spanish Cohort/Covariates.xlsx")
+
+sp.pgs <- read.table("F:/Dropbox (University of Michigan)/Kelly & John Work (ALS Genetics)/Datasets/Spanish Cohort/new132.GoutmanScores.SpanishCohort.profile", header=T)
+
+sp.pd$IID2 <- paste0(sp.pd$IID, '_', sp.pd$IID)
+table(sp.pd$IID2 %in% sp.pgs$IID)
+
+sp.pgs.order <- sp.pgs[match(sp.pd$IID2, sp.pgs$IID), ]
+sp.pgs.order$PGS_standardize <- (sp.pgs.order$SCORE - mean(sp.pgs.order$SCORE)) / sd(sp.pgs.order$SCORE)
+
+sp.pd$ALS_PGS <- sp.pgs.order$PGS_standardize
+
+
+#set up covariates
+sp.pd$ALS <- ifelse(sp.pd$diagnosis=='control', 'control', 'ALS')
+table(sp.pd$ALS, sp.pd$diagnosis)
+sp.pd$ALS2 <- ifelse(sp.pd$diagnosis=='ALS', 'ALS', 'control')
+
+sp.pd$ALS <- factor(sp.pd$ALS, levels=c('control','ALS'))
+sp.pd$ALS2 <- factor(sp.pd$ALS2, levels=c('control','ALS'))
+
+sp.pd$ALS_Q4 <- sp.pd$ALS_PGS > 0.64434
+sp.pd$ALS_D10 <- sp.pd$ALS_PGS > 1.31462228
+sp.pd$ALS_B2 <- sp.pd$ALS_PGS > -0.05951321
+
+
+sp.pd$SEX <- factor(sp.pd$SEX)
+
+sp.pd$ethnicity <- as.numeric(sp.pd$ethnicity)
+
+sp.pd$family_status <- ifelse(is.na(sp.pd$family_status), "none", sp.pd$family_status)
+sp.pd$family_status <- factor(sp.pd$family_status, levels=c("none","sporadic","familial"))
+sp.pd$familial <- ifelse(sp.pd$family_status=="familial", "yes", "no")
+
+sp.pd$c9 <- ifelse(sp.pd$c9orf72_status=="Fail", NA, sp.pd$c9orf72_status)
+sp.pd$c9 <- factor(sp.pd$c9, levels=c("WT", "Exp"))
+
+table(sp.pd$diagnosis, sp.pd$family_status)
+
+table(sp.pd$ALS, sp.pd$familial)
+table(sp.pd$diagnosis, sp.pd$c9)
+
+
+#counting missing
+sp.pd$miss <- !is.na(sp.pd$c9) & sp.pd$c9 != "Fail" & !is.na(sp.pd$age_at_onset)
+table(!is.na(sp.pd$c9) & sp.pd$c9 != "Fail", sp.pd$diagnosis)
+table(!is.na(sp.pd$age_at_onset), sp.pd$diagnosis)
+table(sp.pd$miss, sp.pd$diagnosis)
+
+
+nrow(sp.pd) #3536
+sp.pd <- sp.pd[!is.na(sp.pd$c9) & sp.pd$c9 != "Fail", ]
+nrow(sp.pd) #3505
+sp.pd <- sp.pd[!is.na(sp.pd$age_at_onset), ]
+nrow(sp.pd) #3304
+```
+
+#demo table
+```{r}
+# restab.sp <- compareGroups(ALS ~ ALS_PGS + familial + SEX +
+#                           c9 + PC1 + PC2 + PC3 + PC4 + PC5,
+#                         data=sp.pd)
+# tab.sp <- createTable(restab.sp)
+#export2word(tab.sp, file=file.path(output,'Tables/table1_sp.docx'))
+
+
+sp.tab1 <- tbl_summary(data=sp.pd %>% select(ALS, ALS_PGS, c9, familial, SEX, age_at_onset, 
+                                           PC1, PC2, PC3, PC4, PC5),
+                      by=ALS,
+                      label = list(ALS ~ "ALS Case/Control Status",
+                                   ALS_PGS ~ "ALS PGS with C9 Region Removed",
+                                   familial ~ "Family History of ALS",
+                                   SEX ~ "Sex",
+                                   c9 ~ "C9 Repeat Status",
+                                   age_at_onset ~ "Age")) %>%
+            add_p()
+
+sp.tab1
+
+sp.tab1 %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path=file.path(output,"Tables/table1_sp.docx"))
+
+```
+
+# models
+```{r}
+sp_132snp <- logistf(ALS ~ ALS_PGS + SEX + familial + c9 + age_at_onset + PC1 + PC2 + PC3 + PC4 + PC5, 
+            family = binomial("logit"), data=sp.pd) %>% summary()
+
+# logistf(ALS ~ ALS_PGS + SEX + familial + c9 + PC1 + PC2 + PC3 + PC4 + PC5, 
+#             family = binomial("logit"), data=sp.pd) %>% summary()
+
+density_plot_sp <- ggplot(sp.pd, aes(x=ALS_PGS, fill=ALS)) +
+  geom_density(alpha=0.3) + theme_classic() +
+  guides(fill=guide_legend(title="")) +
+  xlab("Polygenic Score") + ylab("") +
+  scale_fill_discrete(labels=c("Control", "ALS Case")) +
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=14))
+density_plot_sp
+```
+
+```{r}
+library(meta)
+library(ggplot2)
+
+#logistf summary wont stay as a table ahhhhh how do I get the SE without copy paste
+dat <- data.frame(TE=c(all_132snp$coefficients[2], sp_132snp$coefficients[2]),
+                  seTE=c(0.10198150,0.048287897),
+                  lab=c("Michigan","Spanish"),
+                  lower=c(all_132snp$ci.lower[2], sp_132snp$ci.lower[2]),
+                  upper=c(all_132snp$ci.upper[2], sp_132snp$ci.upper[2]))
+
+meta <- metagen(TE=dat$TE,
+        seTE=dat$seTE,
+        studlab=dat$lab,
+        fixed = TRUE,
+        random = FALSE,
+        prediction=TRUE,
+        sm="OR")
+
+forest.dat <- data.frame(est=exp(c(meta$TE.fixed, dat$TE, euro_132snp$coefficients['pgs_sp'])),
+                         lower=exp(c(meta$lower.fixed, dat$lower, euro_132snp$ci.lower['pgs_sp'])),
+                         upper=exp(c(meta$upper.fixed, dat$upper, euro_132snp$ci.upper['pgs_sp'])),
+                         name=c("Meta (Spanish + Michigan All)","Michigan (All, n=442)","Spanish (n=3304)", "Michigan (Euro only, n=409)"),
+                         col=factor(c(1,2,3,2)))
+forest.dat$name <- factor(forest.dat$name, levels=c("Michigan (Euro only, n=409)", "Michigan (All, n=442)","Spanish (n=3304)","Meta (Spanish + Michigan All)"))
+
+p <- ggplot(forest.dat, aes(x=name, y=est, ymin=lower, ymax=upper)) +
+  geom_pointrange(aes(col=col)) +
+  geom_hline(aes(fill=name), yintercept=1, linetype=2)+
+  geom_errorbar(aes(ymin=lower, ymax=upper,col=col),width=0.5,cex=1)+ 
+  theme_bw() +
+  theme(plot.title=element_text(size=16,face="bold"),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.x=element_text(face="bold"),
+        axis.title=element_text(size=12,face="bold"),
+        strip.text.y = element_text(hjust=0,vjust = 1,angle=180,face="bold"))+
+   coord_flip() + xlab('') + ylab('Effect Estimate (OR for one standard deviation increase in ALS PGS)') +
+  guides(color = "none") + ylim(c(0.4, 1.6)) +
+  geom_text(aes(x=4, y=0.7, label="Meta (Spanish + Michigan All)")) + 
+  geom_text(aes(x=3, y=0.7, label="Spanish (n=3304)")) +
+  geom_text(aes(x=2, y=0.7, label="Michigan (All, n=442)")) +
+  geom_text(aes(x=1, y=0.7, label="Michigan (Euro only, n=419)"))
+
+svg(file.path(output,'Figures/forest_meta.svg'))
+p
+dev.off()
+
+
+mini_forest <-  data.frame(TE=exp(c(all_noc9$coefficients[2], euro_noc9$coefficients[2])),
+                  lab=factor(c("All","Euro Only")),
+                  lower=exp(c(all_noc9$ci.lower[2], euro_noc9$ci.lower[2])),
+                  upper=exp(c(all_noc9$ci.upper[2], euro_noc9$ci.upper[2])))
+mini_forest$lab <- factor(mini_forest$lab, levels=c("Euro Only","All"))
+
+ggplot(mini_forest, aes(x=lab, y=TE, ymin=lower, ymax=upper)) +
+  geom_pointrange(aes(col='green3')) +
+  geom_hline(aes(fill='green3'), yintercept=1, linetype=2)+
+  geom_errorbar(aes(ymin=lower, ymax=upper,col='green3'),width=0.5,cex=1)+ 
+  theme_bw() +
+  theme(plot.title=element_text(size=16,face="bold"),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.x=element_text(face="bold"),
+        axis.title=element_text(size=12,face="bold"),
+        strip.text.y = element_text(hjust=0,vjust = 1,angle=180,face="bold"))+
+   coord_flip() + xlab('') + ylab('Effect Estimate (OR for one standard deviation increase in ALS PGS)') +
+  guides(color = "none") + ylim(c(0.4, 1.6)) + scale_color_manual(values=c('green3'))+
+  geom_text(aes(x=2, y=0.7, label="Michigan (All, n=435)")) +
+  geom_text(aes(x=1, y=0.7, label="Michigan (Euro only, n=403)")) 
+
+```
+
+```{r, eval=F}
+sp.pd$ALS2 <- ifelse(sp.pd$ALS =='case', 1, 0)
+
+sp.pd <- sp.pd[!is.na(sp.pd$c9),]
+
+adjust_variable = 'SEX + PC1 + PC2 + PC3 + PC4 + PC5'
+
+crude = logistf(formula = as.formula(paste('ALS ~ ', adjust_variable)), data = sp.pd, family = 'binomial')
+prob_crude = predict(crude, type = c("response"))
+
+famhis = logistf(formula = as.formula(paste('ALS ~ familial + ', adjust_variable)), data = sp.pd, family = 'binomial')
+prob_famhis = predict(famhis, type = c("response"))
+
+c9 = logistf(formula = as.formula(paste('ALS ~  c9 + ', adjust_variable)), data = sp.pd, family = 'binomial')
+prob_c9 = predict(c9, type = c("response"))
+
+PGS = logistf(formula = as.formula(paste('ALS ~ ALS_PGS + ', adjust_variable)), data = sp.pd, family = 'binomial')
+prob_PGS = predict(PGS,type = c("response"))
+
+sp.pd$prob_crude <- prob_crude
+sp.pd$prob_famhis <- prob_famhis
+sp.pd$prob_c9 <- prob_c9
+sp.pd$prob_PGS <- prob_PGS
+
+roc_crude = roc(ALS ~ prob_crude, data = sp.pd)
+roc_famhis = roc(ALS ~ prob_famhis, data = sp.pd)
+roc_c9 = roc(ALS ~ prob_c9, data = sp.pd)
+roc_PGS = roc(ALS ~ prob_PGS, data = sp.pd)
+
+labs =   c(paste0("Base (AUC:", round(roc_crude[['auc']][[1]], 3), ")"),
+           paste0("Add fam his (AUC:", round(roc_famhis[['auc']][[1]], 3), ")"),
+           paste0("Add C9 (AUC:", round(roc_c9[['auc']][[1]], 3), ")"),
+           paste0("Add PGS (AUC:", round(roc_PGS[['auc']][[1]], 3), ")"))
+
+roc_plot<- ggroc(list(crude = roc_crude, famhis = roc_famhis, c9 = roc_c9, PGS_only = roc_PGS), 
+                 aes = c("colour"), size=1.2,legacy.axes = TRUE) +
+  theme_classic(base_size = 20) +
+  geom_abline(intercept=0, slope=1, linetype="dashed") +
+  labs(title="", x = "1 - Specificity", y = "Sensitivity", colour = "Model") +
+                   scale_color_manual(values= c("dodgerblue","goldenrod","firebrick3","purple"), labels=labs)
+print(roc_plot)
+
+logistftest(famhis, crude)
+logistftest(c9, crude)
+logistftest(PGS, crude)
 ```
