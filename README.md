@@ -1,8 +1,8 @@
 # Cumulative genetic risk and C9orf72 repeat status independently associate with ALS status in two case-control studies
 
-John F. Dou1, Kelly M. Bakulski1, Kai Guo2,3, Junguk Hur4, Lili Zhou5, Sara Saez-Atienzar6, Ali R Stark6, Ruth Chia6, Alberto García-Redondo7,8, Ricardo Rojas-García8,9, Juan Francisco Vázquez-Costa8,10,11, Ruben Fernandez Santiago12,13,14, Sara Bandres-Ciga15, Pilar Gómez-Garre12,16, Maria Teresa Periñán12,16, Pablo Mir12,16,17, Jordi Pérez-Tur12,18,19, Fernando Cardona12,18,19, Manuel Menendez-Gonzalez20,21,22, Javier Riancho23,24, Daniel Borrego-Hernández7,8, Lucía Galán-Dávila25, Jon Infante Ceberio24, Pau Pastor26,27, Carmen Paradas28, Spanish Neurological Consortiuma, Bryan J. Traynor6, Eva L. Feldman2,3, and Stephen A Goutman2,3
+John F. Dou, Kelly M. Bakulski, Kai Guo Junguk Hur, Lili Zhou, Sara Saez-Atienzar, Ali R Stark, Ruth Chia, Alberto García-Redondo, Ricardo Rojas-García, Juan Francisco Vázquez-Costa, Ruben Fernandez Santiago, Sara Bandres-Ciga, Pilar Gómez-Garre, Maria Teresa Periñán, Pablo Mir, Jordi Pérez-Tur, Fernando Cardona, Manuel Menendez-Gonzalez, Javier Riancho, Daniel Borrego-Hernández, Lucía Galán-Dávila, Jon Infante Ceberio, Pau Pastor, Carmen Paradas, Spanish Neurological Consortiuma, Bryan J. Traynor6, Eva L. Feldman, and Stephen A Goutman
 
-Members of the Spanish Neurological Consortium: Jesús Esteban-Pérez7,8, Pilar Cordero-Vázquez7,8, Sevilla Teresa8,10,29, Adolfo López de Munain12,30,31, Julio Pardo-Fernández23,32, Ivonne Jericó-Pascual33,34, Oriol Dols-Icardo12,35 , Ellen Gelpi Mantius36,37, Janet Hoenicka8,38, Victoria Alvarez Martinez39,40, Francisco Javier Rodríguez de Rivera Garrido41, Katrin Beyer42, 43, Jordi Clarimón Echevarría12, 35
+Members of the Spanish Neurological Consortium: Jesús Esteban-Pérez, Pilar Cordero-Vázquez, Sevilla Teresa, Adolfo López de Munain1, Julio Pardo-Fernández, Ivonne Jericó-Pascual, Oriol Dols-Icardo, Ellen Gelpi Mantius, Janet Hoenicka, Victoria Alvarez Martinez, Francisco Javier Rodríguez de Rivera Garrido, Katrin Beyer, Jordi Clarimón Echevarría
 
 
 
