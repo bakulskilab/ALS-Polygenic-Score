@@ -16,11 +16,19 @@ Dou JF, Bakulski KM, Guo K, Hur J, Zhou L, Saez-Atienzar S, Stark AR, Chia R, Ga
 
 ### Script files 
 01_missing.Rmd: Keep track of counting; checking and filtering based on missingness
+
 02_sex.Rmd: samples missing sex confirmed to have correct predicted sex
+
 03_MAF.Rmd: checking MAF frequency and Removing SNPs with a low MAF frequency
+
 04_HWE.Rmd: checking Hardy-Weinberg equilibrium (HWE) and removing snps deviating from HWE
+
 05_heterozygosity.Rmd: changing heterozygosity exclusion cutoff and removing samples with large deviations
+
 06_relatedness.Rmd: checking relationships between individuals and sample match issue
+
 07_Ancestry.Rmd: getting self report race/ethnicity and resolving merge issues
+
 08_Impute.Rmd: imputation
+
 09_PGS.Rmd: PGS modelling
