@@ -4,6 +4,10 @@ John F. Dou, Kelly M. Bakulski, Kai Guo Junguk Hur, Lili Zhou, Sara Saez-Atienza
 
 Members of the Spanish Neurological Consortium: Jesús Esteban-Pérez, Pilar Cordero-Vázquez, Sevilla Teresa, Adolfo López de Munain1, Julio Pardo-Fernández, Ivonne Jericó-Pascual, Oriol Dols-Icardo, Ellen Gelpi Mantius, Janet Hoenicka, Victoria Alvarez Martinez, Francisco Javier Rodríguez de Rivera Garrido, Katrin Beyer, Jordi Clarimón Echevarría
 
+### Citation Information 
+Dou JF, Bakulski KM, Guo K, Hur J, Zhou L, Saez-Atienzar S, Stark AR, Chia R, García-Redondo A, Rojas-García R, Vázquez-Costa JF, SantiagonRF, Bandres-Ciga S, Gómez-Garre P, Periñán MT, Mir P, Pérez-Tur J, Cardona F, Menendez-Gonzalez M, Riancho J, Borrego-Hernández D, Galán-Dávila L, Ceberio JI, Pastor P, Spanish Neurological Consortium, Traynor BJ, Feldman EL, Goutman SA, & Spanish Neurological Consortium. 2022. Cumulative genetic risk and C9orf72 repeat status independently associate with ALS status in two case-control studies. medRxiv. https://doi.org/10.1101/2022.10.27.22281377 
+
+This Github repository contains the data management and analytic scripts to produce the following manuscript:[Cumulative genetic risk and C9orf72 repeat status independently associate with ALS status in two case-control studies](https://www.medrxiv.org/content/10.1101/2022.10.27.22281377v1.full)
 
 ### Abstract 
 **Background**: Most amyotrophic lateral sclerosis (ALS) patients lack a monogenic mutation. This study evaluates ALS cumulative genetic risk in an independent Michigan and Spanish replication cohort using polygenic scores.
@@ -11,8 +15,10 @@ Members of the Spanish Neurological Consortium: Jesús Esteban-Pérez, Pilar Cor
 **Results**: Polygenic scores constructed from 275 single nucleotide polymorphisms had the best model fit in the Michigan cohort. A standard deviation increase in ALS polygenic score associated with 1.28 (95%CI 1.04-1.57) times higher odds of ALS with area under the curve of 0.663 versus a model without the ALS polygenic score (p-value=1x10-6). The population attributable fraction of the highest 20th percentile of ALS polygenic scores, relative to the lowest 80th percentile, was 4.1% of ALS cases. Genes annotated to this polygenic score enriched for important ALS pathomechanisms. Meta-analysis with the Spanish study, using a harmonized 132 single nucleotide polymorphism polygenic score, yielded similar logistic regression findings (odds ratio: 1.13, 95%CI 1.04-1.23).
 **Conclusion**: ALS polygenic scores can account for cumulative genetic risk in populations and reflect disease-relevant pathways. If further validated, this polygenic score will inform future ALS risk models.
 
-### Citation Information 
-Dou JF, Bakulski KM, Guo K, Hur J, Zhou L, Saez-Atienzar S, Stark AR, Chia R, García-Redondo A, Rojas-García R, Vázquez-Costa JF, SantiagonRF, Bandres-Ciga S, Gómez-Garre P, Periñán MT, Mir P, Pérez-Tur J, Cardona F, Menendez-Gonzalez M, Riancho J, Borrego-Hernández D, Galán-Dávila L, Ceberio JI, Pastor P, Spanish Neurological Consortium, Traynor BJ, Feldman EL, Goutman SA, & Spanish Neurological Consortium. 2022. Cumulative genetic risk and C9orf72 repeat status independently associate with ALS status in two case-control studies. medRxiv. https://doi.org/10.1101/2022.10.27.22281377 
+## Funding
+National ALS Registry/CDC/ATSDR (1R01TS000289); National ALS Registry/CDC/ATSDR CDCP-DHHS-US (CDC/ATSDR 200-2013-56856); NIEHS K23ES027221; NIEHS R01ES030049; NINDS R01NS127188, ALS Association (20-IIA-532), the Dr. Randall W. Whitcomb Fund for ALS Genetics, the Peter R. Clark Fund for ALS Research, the Scott L. Pranger ALS Clinic Fund, and the NeuroNetwork for Emerging Therapies at the University of Michigan. This work was supported in part by the Intramural Research Program of the NIH, National Institute on Aging (Z01-AG000949-02).
+
+Project “ALS Genetic study in Madrid Autonomous Community” funded by “ESTRATEGIAS FRENTE A ENFERMEDADES NEURODEGENERATIVAS” from Spanish Ministry of Health
 
 ### Script files 
 01_missing.Rmd: Keep track of counting; checking and filtering based on missingness
